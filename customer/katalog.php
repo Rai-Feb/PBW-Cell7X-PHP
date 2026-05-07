@@ -45,6 +45,10 @@ $mockup_images = [
     'https://images.unsplash.com/photo-1592899677712-a5a254503381?w=400&h=400&fit=crop',
     'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop'
 ];
+
+$user_display = $_SESSION['username'] ?? $_SESSION['nama'] ?? 'Pengguna';
+$profile_pic = $_SESSION['profile_picture'] ?? null;
+$initial = strtoupper(substr($user_display, 0, 1));
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -52,383 +56,246 @@ $mockup_images = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>7CellX - Premium Smartphone Store</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap"
+    <title>PhoneHub - Toko HP Premium</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        :root {
-            --gold-primary: #d4af37;
-            --gold-light: #f4e5c2;
-            --gold-dark: #aa8c2c;
-            --cream: #faf8f3;
-            --dark: #1a1a1a;
-            --gray: #6b7280;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Montserrat', sans-serif;
-        }
-
         body {
-            background: var(--cream);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #f8fafd;
+            color: #1e293b;
         }
 
         .navbar {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            background: #ffffff;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
             padding: 16px 0;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 32px;
-        }
-
-        .navbar-content {
-            display: flex;
-            align-items: center;
-        }
-
         .navbar-brand {
+            font-weight: 800;
             font-size: 1.8rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+            letter-spacing: -1px;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .nav-right {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            margin-left: auto;
-        }
-
-        .nav-menu {
-            display: flex;
-            gap: 20px;
-            list-style: none;
-            align-items: center;
-        }
-
-        .nav-menu a {
-            text-decoration: none;
-            color: var(--gray);
-            font-weight: 600;
-            font-size: 0.95rem;
-            transition: all 0.3s;
+            background-clip: text;
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .nav-menu a:hover {
-            color: var(--gold-primary);
-        }
-
-        .user-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding-left: 20px;
-            border-left: 2px solid #e5e7eb;
-        }
-
-        .avatar-small {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid var(--gold-light);
-        }
-
-        .user-display {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
-
-        .user-name {
-            font-size: 0.9rem;
-            font-weight: 700;
-            color: var(--dark);
-        }
-
-        .user-links {
-            display: flex;
-            gap: 12px;
-        }
-
-        .user-links a {
-            font-size: 0.85rem;
-            color: var(--gold-primary);
-            text-decoration: none;
+        .nav-link {
             font-weight: 600;
+            color: #475569;
+            transition: 0.25s;
+            padding: 10px 16px !important;
+            border-radius: 12px;
+            margin: 0 2px;
         }
 
-        .user-links a:hover {
-            color: var(--gold-dark);
+        .nav-link:hover,
+        .nav-link.active {
+            background: #f1f5f9;
+            color: #2563eb;
         }
 
-        .hero {
-            background: linear-gradient(135deg, var(--gold-light) 0%, var(--cream) 100%);
-            padding: 80px 0;
-            margin-bottom: 50px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: -100px;
-            right: -100px;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(212, 175, 55, 0.1) 0%, transparent 70%);
-            border-radius: 50%;
-        }
-
-        .hero-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 60px;
+        .user-badge {
+            background: #f8fafc;
+            border-radius: 40px;
+            padding: 6px 12px 6px 6px;
+            display: flex;
             align-items: center;
-            position: relative;
-            z-index: 1;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border: 1px solid #e2e8f0;
         }
 
-        .hero-text h1 {
-            font-size: 3rem;
-            font-weight: 900;
-            color: var(--dark);
-            margin-bottom: 20px;
+        .avatar-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .hero-section {
+            background: radial-gradient(circle at 30% 50%, rgba(37, 99, 235, 0.08) 0%, transparent 60%),
+                radial-gradient(circle at 70% 20%, rgba(124, 58, 237, 0.06) 0%, transparent 55%);
+            padding: 90px 0 70px;
+            margin-bottom: 40px;
+        }
+
+        .hero-title {
+            font-size: 3.3rem;
+            font-weight: 800;
+            letter-spacing: -1px;
             line-height: 1.2;
         }
 
-        .hero-text h1 span {
-            color: var(--gold-primary);
+        .hero-title span {
+            background: linear-gradient(to right, #2563eb, #9333ea);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .hero-text p {
-            font-size: 1.1rem;
-            color: var(--gray);
-            margin-bottom: 30px;
-            line-height: 1.6;
+        .search-panel {
+            background: #ffffff;
+            border-radius: 28px;
+            padding: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.03);
+            border: 1px solid #f1f5f9;
+            margin-bottom: 45px;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
-            color: white;
-            border: none;
-            padding: 14px 32px;
-            border-radius: 12px;
-            font-weight: 700;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            transition: all 0.3s;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.4);
-        }
-
-        .hero-image {
-            text-align: center;
-            perspective: 1000px;
-        }
-
-        .phone-mockup {
-            width: 320px;
-            height: auto;
-            filter: drop-shadow(0 25px 50px rgba(0, 0, 0, 0.15));
-            transform: rotateY(-5deg) rotateX(5deg);
-            transition: transform 0.5s;
-        }
-
-        .hero-image:hover .phone-mockup {
-            transform: rotateY(0deg) rotateX(0deg);
-        }
-
-        .search-section {
-            background: white;
-            padding: 24px 32px;
-            border-radius: 20px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-            margin-bottom: 50px;
-            display: flex;
-            gap: 16px;
-            align-items: center;
-        }
-
-        .search-wrapper {
-            flex: 1;
+        .input-group-custom {
             position: relative;
         }
 
-        .search-wrapper i {
+        .input-group-custom .form-control {
+            border: 2px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 14px 20px 14px 50px;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+
+        .input-group-custom .form-control:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.08);
+        }
+
+        .input-group-custom .search-icon {
             position: absolute;
             left: 20px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--gold-primary);
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 16px 24px 16px 52px;
-            border: 2px solid #e5e7eb;
-            border-radius: 14px;
-            font-size: 1rem;
-            transition: all 0.3s;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--gold-primary);
-            box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.1);
-        }
-
-        .sort-select {
-            padding: 16px 24px;
-            border: 2px solid #e5e7eb;
-            border-radius: 14px;
-            font-size: 1rem;
-            background: white;
-            cursor: pointer;
-            min-width: 220px;
-            font-weight: 600;
-        }
-
-        .products-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 32px;
-            margin-bottom: 80px;
+            color: #94a3b8;
+            font-size: 1.2rem;
         }
 
         .product-card {
-            background: white;
-            border-radius: 20px;
+            background: #ffffff;
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            transition: all 0.4s;
-            border: 1px solid #f3f4f6;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.03);
+            transition: all 0.35s ease;
+            border: 1px solid #f1f5f9;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
         }
 
         .product-card:hover {
             transform: translateY(-8px);
-            box-shadow: 0 12px 40px rgba(212, 175, 55, 0.2);
+            box-shadow: 0 25px 45px rgba(37, 99, 235, 0.1);
+            border-color: #cbd5e1;
         }
 
-        .product-image-wrapper {
-            position: relative;
-            height: 300px;
-            background: linear-gradient(135deg, #faf8f3 0%, #f0ebe3 100%);
-            overflow: hidden;
+        .product-img-wrap {
+            background: #f8fafc;
+            padding: 40px 20px 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 30px;
+            height: 260px;
+            position: relative;
+            overflow: hidden;
         }
 
-        .product-image {
-            max-width: 100%;
-            max-height: 100%;
+        .product-img-wrap img {
+            max-height: 200px;
             object-fit: contain;
             transition: transform 0.4s;
             border-radius: 16px;
         }
 
-        .product-card:hover .product-image {
-            transform: scale(1.05);
+        .product-card:hover .product-img-wrap img {
+            transform: scale(1.04);
         }
 
-        .badge-stock {
+        .stock-badge {
             position: absolute;
-            top: 16px;
-            right: 16px;
-            padding: 8px 16px;
-            border-radius: 24px;
-            font-size: 0.75rem;
+            top: 14px;
+            right: 14px;
+            padding: 6px 16px;
+            border-radius: 28px;
+            font-size: 0.7rem;
             font-weight: 700;
-            text-transform: uppercase;
             letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
-        .badge-success {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
+        .badge-available {
+            background: #dcfce7;
+            color: #15803d;
         }
 
-        .badge-warning {
-            background: linear-gradient(135deg, #f59e0b, #d97706);
-            color: white;
+        .badge-limited {
+            background: #fef9c3;
+            color: #a16207;
         }
 
-        .badge-danger {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            color: white;
+        .badge-out {
+            background: #fee2e2;
+            color: #b91c1c;
         }
 
         .product-body {
-            padding: 24px;
+            padding: 20px 22px 22px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
-        .product-category {
-            color: var(--gold-primary);
-            font-size: 0.8rem;
+        .category-tag {
+            font-size: 0.7rem;
             font-weight: 700;
+            color: #6366f1;
+            letter-spacing: 0.6px;
             text-transform: uppercase;
-            letter-spacing: 0.8px;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
 
-        .product-title {
-            font-size: 1.1rem;
+        .product-name {
             font-weight: 700;
-            color: var(--dark);
-            margin-bottom: 14px;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
             line-height: 1.4;
-            height: 50px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
             overflow: hidden;
         }
 
-        .product-price {
-            font-size: 1.6rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+        .price {
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #0f172a, #334155);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 20px;
+            margin-bottom: 18px;
         }
 
         .btn-detail {
-            width: 100%;
-            padding: 12px 20px;
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
-            color: white;
+            background: #2563eb;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
+            padding: 12px 18px;
             font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
+            font-size: 0.85rem;
+            color: white;
+            transition: 0.25s;
+            display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
@@ -436,165 +303,113 @@ $mockup_images = [
         }
 
         .btn-detail:hover {
+            background: #1d4ed8;
+            color: white;
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(212, 175, 55, 0.4);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 120px 20px;
-            background: white;
-            border-radius: 24px;
-            margin: 40px 0;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-        }
-
-        .empty-state i {
-            font-size: 5rem;
-            color: #d1d5db;
-            margin-bottom: 24px;
         }
 
         .footer {
-            background: var(--dark);
-            color: white;
+            background: #0f172a;
+            color: #cbd5e1;
             padding: 50px 0 30px;
-            text-align: center;
-            margin-top: 100px;
-        }
-
-        .footer-brand {
-            font-size: 1.8rem;
-            font-weight: 900;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        @media (max-width: 1024px) {
-            .hero-content {
-                grid-template-columns: 1fr;
-            }
-
-            .products-grid {
-                grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-                gap: 20px;
-            }
+            margin-top: 70px;
         }
 
         @media (max-width: 768px) {
-            .navbar-content {
-                flex-direction: column;
-                gap: 16px;
-            }
-
-            .nav-right {
-                flex-direction: column;
-                gap: 16px;
-                margin-left: 0;
-                width: 100%;
-                justify-content: center;
-            }
-
-            .user-section {
-                border-left: none;
-                padding-left: 0;
-                align-items: center;
-            }
-
-            .hero-text h1 {
-                font-size: 2rem;
+            .hero-title {
+                font-size: 2.3rem;
             }
         }
     </style>
 </head>
 
 <body>
-    <nav class="navbar">
+    <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container">
-            <div class="navbar-content">
-                <a href="katalog.php" class="navbar-brand">
-                    <i class="bi bi-lightning-charge-fill"></i>7CellX
-                </a>
-                <div class="nav-right">
-                    <ul class="nav-menu">
-                        <li><a href="keranjang.php"><i class="bi bi-cart"></i> Keranjang</a></li>
-                        <li><a href="pesanan.php"><i class="bi bi-box"></i> Pesanan</a></li>
-                        <li><a href="chat.php"><i class="bi bi-chat-dots"></i> Chat Support</a></li>
-                    </ul>
-                    <div class="user-section">
-                        <?php if (!empty($_SESSION['profile_picture'])): ?>
-                            <img src="../uploads/profiles/<?php echo htmlspecialchars($_SESSION['profile_picture']); ?>"
-                                class="avatar-small" alt="Profile">
+            <a class="navbar-brand" href="katalog.php">
+                <i class="bi bi-phone"></i> PhoneHub
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarMain">
+                <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link active" href="katalog.php"><i
+                                class="bi bi-grid-fill me-1"></i> Katalog</a></li>
+                    <li class="nav-item"><a class="nav-link" href="keranjang.php"><i class="bi bi-cart3 me-1"></i>
+                            Keranjang</a></li>
+                    <li class="nav-item"><a class="nav-link" href="pesanan.php"><i class="bi bi-box-seam me-1"></i>
+                            Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="chat.php"><i class="bi bi-chat-dots me-1"></i>
+                            Chat</a></li>
+                </ul>
+                <div class="d-flex align-items-center">
+                    <div class="user-badge me-3">
+                        <?php if ($profile_pic): ?>
+                            <img src="../uploads/profiles/<?php echo htmlspecialchars($profile_pic); ?>"
+                                class="avatar-circle" style="background: none; object-fit: cover;" alt="profil">
                         <?php else: ?>
-                            <div class="avatar-small"
-                                style="background: var(--gold-light); display: flex; align-items: center; justify-content: center; color: var(--gold-dark); font-weight: 700;">
-                                <?php echo strtoupper(substr($_SESSION['username'] ?? 'U', 0, 1)); ?>
+                            <div class="avatar-circle">
+                                <?php echo $initial; ?>
                             </div>
                         <?php endif; ?>
-                        <div class="user-display">
-                            <span class="user-name">
-                                <?php echo htmlspecialchars($_SESSION['username'] ?? $_SESSION['nama']); ?>
-                            </span>
-                            <div class="user-links">
-                                <a href="settings.php"><i class="bi bi-gear"></i> Pengaturan</a>
-                                <a href="../auth/logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-                            </div>
-                        </div>
+                        <span class="d-none d-md-inline">
+                            <?php echo htmlspecialchars($user_display); ?>
+                        </span>
                     </div>
+                    <a href="settings.php" class="btn btn-outline-secondary rounded-pill me-2"><i
+                            class="bi bi-gear"></i></a>
+                    <a href="../auth/logout.php" class="btn btn-outline-danger rounded-pill"><i
+                            class="bi bi-box-arrow-right"></i></a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <section class="hero">
-        <div class="container">
-            <div class="hero-content">
-                <div class="hero-text">
-                    <h1>NEW SMARTPHONE <span>COMPARE MODELS</span></h1>
-                    <p>Temukan smartphone premium dengan teknologi terbaru. Kualitas terbaik, harga kompetitif, dan
-                        garansi resmi untuk kenyamanan Anda.</p>
-                    <a href="#products" class="btn-primary"><i class="bi bi-bag"></i> Belanja Sekarang</a>
-                </div>
-                <div class="hero-image">
-                    <img src="https://images.unsplash.com/photo-1556656793-02715d8dd6f5?w=600&h=400&fit=crop"
-                        alt="Smartphone Mockup" class="phone-mockup"
-                        onerror="this.onerror=null; this.src='https://placehold.co/600x400/f4e5c2/d4af37?text=7CellX+Preview';">
-                </div>
-            </div>
+    <section class="hero-section">
+        <div class="container text-center">
+            <h1 class="hero-title">Temukan <span>Smartphone Impian</span> Anda</h1>
+            <p class="lead mt-3 mb-0 text-secondary">Garansi resmi, harga terbaik, pengiriman cepat ke seluruh
+                Indonesia.</p>
         </div>
     </section>
 
     <div class="container">
-        <div class="search-section">
-            <div class="search-wrapper">
-                <i class="bi bi-search"></i>
-                <input type="text" class="search-input" placeholder="Cari smartphone, tablet, atau aksesoris..."
-                    value="<?php echo htmlspecialchars($search); ?>"
-                    onchange="window.location='?q='+this.value+'&sort=<?php echo $sort; ?>'">
+        <div class="search-panel">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-8">
+                    <div class="input-group-custom">
+                        <i class="bi bi-search search-icon"></i>
+                        <input type="text" class="form-control" id="searchInput"
+                            placeholder="Cari merek, tipe, atau kategori HP..."
+                            value="<?php echo htmlspecialchars($search); ?>"
+                            onchange="window.location='?q='+encodeURIComponent(this.value)+'&sort=<?php echo urlencode($sort); ?>'">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select rounded-pill px-4 py-3"
+                        style="border:2px solid #e2e8f0; font-weight:500;"
+                        onchange="window.location='?q=<?php echo urlencode($search); ?>&sort='+this.value">
+                        <option value="terbaru" <?php echo $sort === 'terbaru' ? 'selected' : ''; ?>>🔥 Terbaru</option>
+                        <option value="termurah" <?php echo $sort === 'termurah' ? 'selected' : ''; ?>>💰 Termurah
+                        </option>
+                        <option value="termahal" <?php echo $sort === 'termahal' ? 'selected' : ''; ?>>💎 Termahal
+                        </option>
+                    </select>
+                </div>
             </div>
-            <select class="sort-select"
-                onchange="window.location='?q=<?php echo urlencode($search); ?>&sort='+this.value">
-                <option value="terbaru" <?php echo $sort == 'terbaru' ? 'selected' : ''; ?>>⭐ Produk Terbaru</option>
-                <option value="termurah" <?php echo $sort == 'termurah' ? 'selected' : ''; ?>>💰 Harga Termurah</option>
-                <option value="termahal" <?php echo $sort == 'termahal' ? 'selected' : ''; ?>>💎 Harga Termahal</option>
-            </select>
         </div>
 
         <?php if (empty($products)): ?>
-            <div class="empty-state">
-                <i class="bi bi-search"></i>
-                <h3>Produk tidak ditemukan</h3>
-                <p style="color: var(--gray); margin: 12px 0 28px;">Coba gunakan kata kunci pencarian yang berbeda</p>
-                <a href="katalog.php" class="btn-primary">Lihat Semua Produk</a>
+            <div class="text-center py-5 px-4 bg-white rounded-4 shadow-sm">
+                <i class="bi bi-emoji-frown display-3 text-muted"></i>
+                <h3 class="mt-4 fw-bold">Produk tidak ditemukan</h3>
+                <p class="text-secondary">Coba kata kunci lain atau lihat semua koleksi kami.</p>
+                <a href="katalog.php" class="btn btn-primary rounded-pill px-4 mt-2">Lihat Semua Produk</a>
             </div>
         <?php else: ?>
-            <div class="products-grid" id="products">
+            <div class="row g-4">
                 <?php
                 $mockup_index = 0;
                 foreach ($products as $produk):
@@ -611,34 +426,40 @@ $mockup_images = [
                     }
                     $mockup_index++;
                     $harga = $produk['harga_min'] ?? $produk['harga'] ?? 0;
+                    $stok = $produk['stok'] ?? 0;
                     ?>
-                    <div class="product-card">
-                        <div class="product-image-wrapper">
-                            <img src="<?php echo htmlspecialchars($gambar); ?>"
-                                alt="<?php echo htmlspecialchars($produk['nama_barang']); ?>" class="product-image"
-                                onerror="this.onerror=null; this.src='https://placehold.co/400x400/f4e5c2/d4af37?text=7CellX';">
-                            <?php if ($produk['stok'] <= 0): ?>
-                                <span class="badge-stock badge-danger">Stok Habis</span>
-                            <?php elseif ($produk['stok'] <= 5): ?>
-                                <span class="badge-stock badge-warning">Sisa
-                                    <?php echo $produk['stok']; ?>
-                                </span>
-                            <?php else: ?>
-                                <span class="badge-stock badge-success">Tersedia</span>
-                            <?php endif; ?>
-                        </div>
-                        <div class="product-body">
-                            <div class="product-category">
-                                <?php echo htmlspecialchars($produk['kategori']); ?>
+                    <div class="col-xl-3 col-lg-4 col-md-6">
+                        <div class="product-card">
+                            <div class="product-img-wrap">
+                                <img src="<?php echo htmlspecialchars($gambar); ?>"
+                                    alt="<?php echo htmlspecialchars($produk['nama_barang']); ?>"
+                                    onerror="this.onerror=null; this.src='https://placehold.co/400x400/f1f5f9/94a3b8?text=PhoneHub';">
+                                <?php if ($stok <= 0): ?>
+                                    <span class="stock-badge badge-out">Habis</span>
+                                <?php elseif ($stok <= 5): ?>
+                                    <span class="stock-badge badge-limited">Sisa
+                                        <?php echo $stok; ?>
+                                    </span>
+                                <?php else: ?>
+                                    <span class="stock-badge badge-available">Stok Ada</span>
+                                <?php endif; ?>
                             </div>
-                            <h5 class="product-title">
-                                <?php echo htmlspecialchars($produk['nama_barang']); ?>
-                            </h5>
-                            <div class="product-price">Rp
-                                <?php echo number_format($harga, 0, ',', '.'); ?>
+                            <div class="product-body">
+                                <div>
+                                    <div class="category-tag">
+                                        <?php echo htmlspecialchars($produk['kategori']); ?>
+                                    </div>
+                                    <h5 class="product-name">
+                                        <?php echo htmlspecialchars($produk['nama_barang']); ?>
+                                    </h5>
+                                    <div class="price">Rp
+                                        <?php echo number_format($harga, 0, ',', '.'); ?>
+                                    </div>
+                                </div>
+                                <a href="detail.php?id=<?php echo $produk['id']; ?>" class="btn-detail">
+                                    <i class="bi bi-eye"></i> Lihat Detail
+                                </a>
                             </div>
-                            <a href="detail.php?id=<?php echo $produk['id']; ?>" class="btn-detail"><i class="bi bi-eye"></i>
-                                Detail</a>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -646,13 +467,14 @@ $mockup_images = [
         <?php endif; ?>
     </div>
 
-    <footer class="footer">
+    <footer class="footer text-center">
         <div class="container">
-            <div class="footer-brand"><i class="bi bi-lightning-charge-fill"></i>7CellX</div>
-            <p style="opacity: 0.8;">Premium Smartphone Store - Kualitas Terbaik untuk Anda</p>
-            <p style="margin-top: 16px; opacity: 0.6;">© 2024 - Project UAS PBW</p>
+            <h4 class="fw-bold text-white mb-2"><i class="bi bi-phone"></i> PhoneHub</h4>
+            <p class="mb-0 opacity-75">Toko HP premium pilihan Indonesia. &copy; 2025</p>
         </div>
     </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>
