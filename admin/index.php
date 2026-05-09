@@ -2,8 +2,6 @@
 session_start();
 require_once '../config/koneksi.php';
 
-/** @var mysqli $conn */
-
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
     exit;
@@ -80,6 +78,26 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
             border-bottom: 1px solid rgba(255, 255, 255, 0.35);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             z-index: 100;
+        }
+
+        @media (min-width: 992px) {
+            .nav-zone-left {
+                flex: 1;
+                display: flex;
+                justify-content: flex-start;
+            }
+
+            .nav-zone-center {
+                flex: 2;
+                display: flex;
+                justify-content: center;
+            }
+
+            .nav-zone-right {
+                flex: 1;
+                display: flex;
+                justify-content: flex-end;
+            }
         }
 
         .brand-pill {
@@ -161,6 +179,16 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
             border-radius: 8px;
             padding: 8px 15px;
             font-weight: 500;
+        }
+
+        .dropdown-item:hover {
+            background-color: #F8FAFC;
+            color: var(--brand-purple);
+        }
+
+        .dropdown-item.text-danger:hover {
+            background-color: #FEF2F2;
+            color: #DC2626 !important;
         }
 
         .main-content {
@@ -428,46 +456,46 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
 
 <body>
     <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container d-lg-flex">
-            <div class="nav-zone-left" style="flex: 1;">
+        <div class="container d-lg-flex px-4">
+            <div class="nav-zone-left">
                 <a class="brand-pill" href="index.php">
                     <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
-                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
                 <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
                     data-bs-target="#navbarNav">
                     <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
                 </button>
             </div>
-            <div class="collapse navbar-collapse nav-zone-center justify-content-center" id="navbarNav">
+            <div class="collapse navbar-collapse nav-zone-center" id="navbarNav">
                 <ul class="navbar-nav align-items-center gap-2 mt-3 mt-lg-0">
-                    <li class="nav-item"><a class="nav-link active d-flex align-items-center gap-2" href="index.php"><i
-                                class="bi bi-speedometer2"></i> Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="produk.php"><i
-                                class="bi bi-box-seam"></i> Produk</a></li>
-                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
-                                class="bi bi-receipt"></i> Pesanan</a></li>
-                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
-                                class="bi bi-chat-dots"></i> Chat</a></li>
-                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2"
-                            href="../customer/katalog.php" target="_blank"><i class="bi bi-shop"></i> Lihat Toko</a>
+                    <li class="nav-item"><a class="nav-link active" href="index.php"><i class="bi bi-speedometer2"></i>
+                            Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="produk.php"><i class="bi bi-box-seam"></i> Produk</a>
                     </li>
+                    <li class="nav-item"><a class="nav-link" href="pesanan.php"><i class="bi bi-receipt"></i>
+                            Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="chat.php"><i class="bi bi-chat-dots"></i> Chat</a>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="../admin/katalog.php" target="_blank"><i
+                                class="bi bi-shop"></i> Lihat Toko</a></li>
                 </ul>
             </div>
-            <div class="collapse navbar-collapse nav-zone-right justify-content-end" id="navbarNavRight"
-                style="flex: 1;">
-                <div class="dropdown">
-                    <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-shield-check fs-5 text-gradient"></i>
-                        <span class="text-gradient">
-                            <?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
-                        </span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
-                                    class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
-                    </ul>
+            <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight">
+                <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0 w-100 justify-content-lg-end">
+                    <div class="dropdown">
+                        <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-shield-check fs-5 text-gradient"></i>
+                            <span class="text-gradient">
+                                <?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
+                            </span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
+                                        class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -476,7 +504,7 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
     <main class="main-content">
         <div class="container">
             <div class="page-header">
-                <h1><i class="bi bi-grid-fill text-muted"></i> Dashboard</h1>
+                <h1><i class="bi bi-grid-fill text-muted"></i> Dashboard Overview</h1>
                 <form method="GET" class="filter-box">
                     <div class="d-flex align-items-center gap-2">
                         <span class="text-muted fw-bold small">DARI:</span>
@@ -583,7 +611,7 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
     <footer>
         <div class="container small fw-medium opacity-75">
             &copy;
-            <?= date('Y') ?> 7CellX - PBW
+            <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.
         </div>
     </footer>
 

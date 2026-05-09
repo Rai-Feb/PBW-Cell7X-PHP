@@ -343,9 +343,9 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left" style="flex: 1;">
                 <a class="brand-pill" href="index.php">
-                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
+                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
-                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
                 <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
                     data-bs-target="#navbarNav">
