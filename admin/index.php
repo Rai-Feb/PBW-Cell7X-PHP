@@ -476,7 +476,7 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
     <main class="main-content">
         <div class="container">
             <div class="page-header">
-                <h1><i class="bi bi-grid-fill text-muted"></i> Dashboard Overview</h1>
+                <h1><i class="bi bi-grid-fill text-muted"></i> Dashboard</h1>
                 <form method="GET" class="filter-box">
                     <div class="d-flex align-items-center gap-2">
                         <span class="text-muted fw-bold small">DARI:</span>
@@ -583,7 +583,7 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
     <footer>
         <div class="container small fw-medium opacity-75">
             &copy;
-            <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.
+            <?= date('Y') ?> 7CellX - PBW
         </div>
     </footer>
 
