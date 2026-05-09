@@ -2,6 +2,8 @@
 session_start();
 require_once '../config/koneksi.php';
 
+/** @var mysqli $conn */
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
     exit;
@@ -19,6 +21,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     exit;
 }
 
+// Menangani permintaan penghapusan (hanya untuk status tertentu jika perlu, atau semua)
+if (isset($_GET['delete'])) {
+    $delete_id = (int) $_GET['delete'];
+    $stmt_delete = mysqli_prepare($conn, "DELETE FROM orders WHERE id = ?");
+    mysqli_stmt_bind_param($stmt_delete, "i", $delete_id);
+    mysqli_stmt_execute($stmt_delete);
+    header('Location: pesanan.php');
+    exit;
+}
+
 $pesanan = mysqli_query($conn, "
     SELECT o.*, u.nama as customer_name, u.email
     FROM orders o 
@@ -32,19 +44,24 @@ $pesanan = mysqli_query($conn, "
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Pesanan - 7Cellectronic</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    <title>Kelola Pesanan - 7CellX Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --gold-primary: #d4af37;
-            --gold-light: #f4e5c2;
-            --gold-dark: #aa8c2c;
-            --cream: #faf8f3;
-            --dark: #1a1a1a;
-            --gray: #6b7280;
-            --sidebar-width: 280px;
+            --brand-pink: #E91E63;
+            --brand-purple: #9C27B0;
+            --brand-navy: #1A237E;
+            --bg-main: #F4F7FE;
+            --bg-card: #FFFFFF;
+            --text-dark: #0F172A;
+            --text-muted: #64748B;
+            --border-subtle: #E2E8F0;
+            --brand-gradient: linear-gradient(135deg, #E91E63 0%, #9C27B0 50%, #1A237E 100%);
+            --glow-shadow: 0 15px 35px rgba(156, 39, 176, 0.15);
+            --card-shadow: 0 8px 25px rgba(0, 0, 0, 0.03);
         }
 
         * {
@@ -55,81 +72,155 @@ $pesanan = mysqli_query($conn, "
         }
 
         body {
-            background: var(--cream);
-            display: flex;
-        }
-
-        .sidebar {
-            width: var(--sidebar-width);
-            background: linear-gradient(180deg, var(--gold-dark) 0%, var(--gold-primary) 100%);
+            background: var(--bg-main);
+            color: var(--text-dark);
             min-height: 100vh;
-            padding: 30px 20px;
-            position: fixed;
-            left: 0;
-            top: 0;
-        }
-
-        .sidebar-brand {
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: white;
-            margin-bottom: 40px;
             display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            background: var(--brand-gradient) !important;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+
+        @media (min-width: 992px) {
+            .nav-zone-left {
+                flex: 1;
+                display: flex;
+                justify-content: flex-start;
+            }
+
+            .nav-zone-center {
+                flex: 2;
+                display: flex;
+                justify-content: center;
+            }
+
+            .nav-zone-right {
+                flex: 1;
+                display: flex;
+                justify-content: flex-end;
+            }
+        }
+
+        .brand-pill {
+            background: #FFFFFF;
+            padding: 6px 20px 6px 8px;
+            border-radius: 30px;
+            display: inline-flex;
             align-items: center;
-            gap: 12px;
-            padding: 0 10px;
-        }
-
-        .sidebar-menu {
-            list-style: none;
-        }
-
-        .sidebar-menu li {
-            margin-bottom: 8px;
-        }
-
-        .sidebar-menu a {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 18px;
-            color: rgba(255, 255, 255, 0.85);
+            gap: 10px;
             text-decoration: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+
+        .brand-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .brand-logo-img {
+            height: 30px;
+            width: 30px;
+            border-radius: 50%;
+            object-fit: contain;
+        }
+
+        .text-gradient {
+            background: var(--brand-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.85) !important;
+            font-weight: 600;
+            margin: 0 5px;
+            padding: 8px 16px !important;
             border-radius: 12px;
             transition: all 0.3s;
-            font-weight: 600;
         }
 
-        .sidebar-menu a:hover,
-        .sidebar-menu a.active {
+        .nav-link:hover,
+        .nav-link.active {
             background: rgba(255, 255, 255, 0.2);
-            color: white;
+            color: #FFFFFF !important;
+            transform: translateY(-1px);
+        }
+
+        .btn-white-nav {
+            background: #FFFFFF;
+            color: var(--brand-purple);
+            font-weight: 700;
+            padding: 8px 20px;
+            border-radius: 30px;
+            border: none;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
+        }
+
+        .btn-white-nav:hover {
+            transform: translateY(-2px);
+            color: var(--brand-pink);
+        }
+
+        .dropdown-menu {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            padding: 10px;
+            margin-top: 15px !important;
+        }
+
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-weight: 500;
+        }
+
+        .dropdown-item:hover {
+            background-color: #F8FAFC;
+            color: var(--brand-purple);
         }
 
         .main-content {
-            margin-left: var(--sidebar-width);
-            flex: 1;
-            padding: 30px 40px;
+            padding: 40px 0;
+            flex-grow: 1;
         }
 
         .page-header {
-            margin-bottom: 32px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            margin-bottom: 30px;
         }
 
         .page-header h1 {
             font-size: 2rem;
             font-weight: 800;
-            color: var(--dark);
+            color: var(--brand-navy);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.5px;
         }
 
         .content-card {
-            background: white;
-            border-radius: 20px;
-            padding: 32px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 30px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: var(--card-shadow);
         }
 
         table {
@@ -139,249 +230,380 @@ $pesanan = mysqli_query($conn, "
 
         th {
             text-align: left;
-            padding: 16px 12px;
-            background: var(--cream);
+            padding: 15px;
+            background: #F8FAFC;
             font-weight: 700;
-            color: var(--dark);
-            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
             text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        th:first-child {
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }
+
+        th:last-child {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
         }
 
         td {
-            padding: 18px 12px;
-            border-bottom: 1px solid #f3f4f6;
-            color: var(--gray);
+            padding: 16px 15px;
+            border-bottom: 1px solid #F1F5F9;
+            color: var(--text-dark);
+            font-weight: 500;
+            font-size: 0.95rem;
+            vertical-align: middle;
         }
 
         tr:hover td {
-            background: var(--cream);
+            background: #F8FAFC;
         }
 
         .badge {
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.8rem;
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 0.75rem;
             font-weight: 700;
-            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .badge-pending {
-            background: #fef3c7;
-            color: #92400e;
+            background: #FFFBEB;
+            color: #D97706;
+            border: 1px solid #FDE68A;
         }
 
         .badge-paid {
-            background: #dbeafe;
-            color: #1e40af;
+            background: #EFF6FF;
+            color: #2563EB;
+            border: 1px solid #BFDBFE;
         }
 
         .badge-shipped {
-            background: #e0e7ff;
-            color: #3730a3;
+            background: #F5F3FF;
+            color: #7C3AED;
+            border: 1px solid #DDD6FE;
         }
 
         .badge-delivered {
-            background: #d1fae5;
-            color: #065f46;
+            background: #ECFDF5;
+            color: #059669;
+            border: 1px solid #A7F3D0;
         }
 
         .badge-cancelled {
-            background: #fee2e2;
-            color: #991b1b;
+            background: #FEF2F2;
+            color: #DC2626;
+            border: 1px solid #FECACA;
         }
 
-        .btn {
-            padding: 10px 20px;
+        .btn-action {
+            padding: 8px 16px;
             border-radius: 10px;
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            background: #F4F7FE;
+            color: var(--brand-purple);
+            border: 1px solid var(--border-subtle);
             cursor: pointer;
-            border: none;
-            transition: all 0.3s;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+        .btn-action:hover {
+            background: var(--brand-purple);
+            color: white;
+            border-color: transparent;
+        }
+
+        .btn-delete {
+            background: #FEF2F2;
+            color: #DC2626;
+            border: 1px solid #FECACA;
+        }
+
+        .btn-delete:hover {
+            background: #DC2626;
             color: white;
         }
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
-        }
-
-        .modal {
+        .modal-overlay {
             display: none;
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
             z-index: 1000;
             align-items: center;
             justify-content: center;
         }
 
-        .modal.active {
+        .modal-overlay.active {
             display: flex;
         }
 
-        .modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 32px;
-            max-width: 500px;
+        .modal-box {
+            background: var(--bg-card);
             width: 90%;
+            max-width: 450px;
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transform: translateY(20px);
+            animation: modalFadeIn 0.3s forwards;
         }
 
-        .modal-header {
+        .modal-header-custom {
             margin-bottom: 24px;
+            text-align: center;
         }
 
-        .modal-header h3 {
+        .modal-header-custom h3 {
             font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--dark);
-        }
-
-        .form-group {
-            margin-bottom: 20px;
+            font-weight: 800;
+            color: var(--brand-navy);
+            margin-bottom: 10px;
         }
 
         .form-label {
             display: block;
             margin-bottom: 8px;
-            font-weight: 600;
-            color: var(--dark);
+            font-weight: 700;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .form-select {
             width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
+            padding: 14px 18px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
             font-size: 1rem;
+            background: #F8FAFC;
+            font-weight: 500;
+            outline: none;
+            margin-bottom: 25px;
+        }
+
+        .form-select:focus {
+            border-color: var(--brand-purple);
+            box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
+            background: white;
         }
 
         .modal-actions {
             display: flex;
             gap: 12px;
-            margin-top: 24px;
         }
 
-        .btn-secondary {
-            background: #e5e7eb;
-            color: var(--dark);
+        .btn-outline-custom {
             flex: 1;
+            padding: 14px;
+            border-radius: 14px;
+            background: white;
+            border: 2px solid var(--border-subtle);
+            color: var(--text-muted);
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            text-align: center;
         }
 
-        @media (max-width: 1024px) {
-            .sidebar {
-                width: 100%;
-                position: relative;
-                min-height: auto;
-            }
+        .btn-outline-custom:hover {
+            border-color: var(--text-dark);
+            color: var(--text-dark);
+        }
 
-            .main-content {
-                margin-left: 0;
+        .btn-primary-custom {
+            flex: 1;
+            padding: 14px;
+            border-radius: 14px;
+            background: var(--brand-gradient);
+            border: none;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: var(--glow-shadow);
+            text-align: center;
+        }
+
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+        }
+
+        footer {
+            margin-top: auto;
+            background: var(--brand-gradient);
+            padding: 20px 0;
+            text-align: center;
+            color: white;
+        }
+
+        @keyframes modalFadeIn {
+            to {
+                transform: translateY(0);
+                opacity: 1;
             }
         }
     </style>
 </head>
 
 <body>
-    <aside class="sidebar">
-        <div class="sidebar-brand">
-            <i class="fas fa-bolt"></i>
-            7Cellectronic
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container d-lg-flex px-4">
+            <div class="nav-zone-left" style="flex: 1;">
+                <a class="brand-pill" href="index.php">
+                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
+                        onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
+                </a>
+                <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
+                </button>
+            </div>
+            <div class="collapse navbar-collapse nav-zone-center justify-content-center" id="navbarNav">
+                <ul class="navbar-nav align-items-center gap-2 mt-3 mt-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="index.php"><i class="bi bi-speedometer2"></i>
+                            Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="produk.php"><i class="bi bi-box-seam"></i> Produk</a>
+                    </li>
+                    <li class="nav-item"><a class="nav-link active" href="pesanan.php"><i class="bi bi-receipt"></i>
+                            Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="chat.php"><i class="bi bi-chat-dots"></i> Chat</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="collapse navbar-collapse nav-zone-right justify-content-end" id="navbarNavRight"
+                style="flex: 1;">
+                <div class="dropdown">
+                    <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-shield-check fs-5 text-gradient"></i>
+                        <span class="text-gradient">
+                            <?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
+                                    class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
         </div>
-        <ul class="sidebar-menu">
-            <li><a href="index.php"><i class="fas fa-home"></i> Dashboard</a></li>
-            <li><a href="produk.php"><i class="fas fa-box"></i> Kelola Produk</a></li>
-            <li><a href="pesanan.php" class="active"><i class="fas fa-shopping-cart"></i> Kelola Pesanan</a></li>
-            <li><a href="laporan.php"><i class="fas fa-chart-line"></i> Laporan</a></li>
-            <li><a href="../auth/logout.php"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
-        </ul>
-    </aside>
+    </nav>
 
     <main class="main-content">
-        <div class="page-header">
-            <h1><i class="fas fa-shopping-cart me-3"></i>Kelola Pesanan</h1>
-        </div>
+        <div class="container">
+            <div class="page-header">
+                <h1><i class="bi bi-receipt text-muted"></i> Kelola Pesanan</h1>
+            </div>
 
-        <div class="content-card">
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Customer</th>
-                            <th>Tanggal</th>
-                            <th>Total</th>
-                            <th>Status</th>
-                            <th>Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php while ($order = mysqli_fetch_assoc($pesanan)): ?>
+            <div class="content-card">
+                <div class="table-responsive">
+                    <table>
+                        <thead>
                             <tr>
-                                <td><strong>#
-                                        <?php echo $order['id']; ?>
-                                    </strong></td>
-                                <td>
-                                    <?php echo htmlspecialchars($order['customer_name'] ?? 'Guest'); ?>
-                                </td>
-                                <td>
-                                    <?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?>
-                                </td>
-                                <td>Rp
-                                    <?php echo number_format($order['total_harga'], 0, ',', '.'); ?>
-                                </td>
-                                <td><span class="badge badge-<?php echo $order['status']; ?>">
-                                        <?php echo ucfirst($order['status']); ?>
-                                    </span></td>
-                                <td>
-                                    <button class="btn btn-primary"
-                                        onclick="openModal(<?php echo $order['id']; ?>, '<?php echo $order['status']; ?>')">
-                                        <i class="fas fa-edit me-2"></i>Update Status
-                                    </button>
-                                </td>
+                                <th>ID</th>
+                                <th>Customer</th>
+                                <th>Tanggal</th>
+                                <th>Total Bayar</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
                             </tr>
-                        <?php endwhile; ?>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            <?php while ($order = mysqli_fetch_assoc($pesanan)): ?>
+                                <tr>
+                                    <td class="fw-bold" style="color: var(--brand-purple);">#
+                                        <?= $order['id']; ?>
+                                    </td>
+                                    <td>
+                                        <?= htmlspecialchars($order['customer_name'] ?? 'Guest'); ?>
+                                    </td>
+                                    <td class="text-muted"><i class="bi bi-calendar2 me-1"></i>
+                                        <?= date('d/m/Y H:i', strtotime($order['created_at'])); ?>
+                                    </td>
+                                    <td class="fw-bold">Rp
+                                        <?= number_format($order['total_harga'], 0, ',', '.'); ?>
+                                    </td>
+                                    <td><span class="badge badge-<?= $order['status']; ?>">
+                                            <?= strtoupper($order['status']); ?>
+                                        </span></td>
+                                    <td>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn-action"
+                                                onclick="openModal(<?= $order['id']; ?>, '<?= $order['status']; ?>')">
+                                                <i class="bi bi-pencil-square"></i> Update
+                                            </button>
+                                            <a href="pesanan.php?delete=<?= $order['id']; ?>" class="btn-action btn-delete"
+                                                onclick="return confirm('Yakin ingin menghapus histori pesanan ini secara permanen?')">
+                                                <i class="bi bi-trash3-fill"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endwhile; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </main>
 
-    <div id="statusModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div id="statusModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header-custom">
+                <div style="font-size: 2.5rem; color: var(--brand-purple); margin-bottom: 15px;"><i
+                        class="bi bi-arrow-repeat"></i></div>
                 <h3>Update Status Pesanan</h3>
+                <p class="text-muted small mb-0">Ubah status progres untuk pesanan #<span id="displayOrderId"></span>
+                </p>
             </div>
             <form method="POST">
                 <input type="hidden" name="order_id" id="modalOrderId">
                 <div class="form-group">
-                    <label class="form-label">Status Pesanan</label>
+                    <label class="form-label">Status Saat Ini</label>
                     <select name="status" id="modalStatus" class="form-select" required>
-                        <option value="pending">Pending (Menunggu Pembayaran)</option>
-                        <option value="paid">Paid (Dibayar - Diproses)</option>
-                        <option value="shipped">Shipped (Sedang Dikirim)</option>
-                        <option value="delivered">Delivered (Selesai)</option>
-                        <option value="cancelled">Cancelled (Dibatalkan)</option>
+                        <option value="pending">PENDING (Menunggu Pembayaran)</option>
+                        <option value="paid">PAID (Dibayar - Diproses)</option>
+                        <option value="shipped">SHIPPED (Sedang Dikirim)</option>
+                        <option value="delivered">DELIVERED (Selesai Diterima)</option>
+                        <option value="cancelled">CANCELLED (Dibatalkan)</option>
                     </select>
                 </div>
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Batal</button>
-                    <button type="submit" name="update_status" class="btn btn-primary" style="flex: 2;">Simpan</button>
+                    <button type="button" class="btn-outline-custom" onclick="closeModal()">Batal</button>
+                    <button type="submit" name="update_status" class="btn-primary-custom">Simpan Perubahan</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <footer>
+        <div class="container small fw-medium opacity-75">
+            &copy;
+            <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function openModal(orderId, currentStatus) {
             document.getElementById('modalOrderId').value = orderId;
+            document.getElementById('displayOrderId').innerText = orderId;
             document.getElementById('modalStatus').value = currentStatus;
             document.getElementById('statusModal').classList.add('active');
         }
@@ -391,7 +613,9 @@ $pesanan = mysqli_query($conn, "
         }
 
         setInterval(function () {
-            location.reload();
+            if (!document.getElementById('statusModal').classList.contains('active')) {
+                location.reload();
+            }
         }, 30000);
     </script>
 </body>

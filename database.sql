@@ -1,44 +1,49 @@
 -- ========================================================
--- 7CellX Database Setup
--- Deskripsi: Schema lengkap untuk toko HP online
--- Author: Generated from PBW Project Development
+-- 7CellX E-Commerce Database Schema
+-- Database: db_elektronik
 -- ========================================================
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
 SET time_zone = "+00:00";
 
--- 1. SETUP DATABASE (Jalankan sekali saja)
-CREATE DATABASE IF NOT EXISTS `db_7cellx` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `db_7cellx`;
+-- Buat Database
+CREATE DATABASE IF NOT EXISTS `db_elektronik` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `db_elektronik`;
 
 -- ========================================================
--- 2. DROP EXISTING TABLES (UNCOMMENT JIKA INGIN RESET TOTAL)
+-- DROP TABLES (Hapus urut dari Child ke Parent)
 -- ========================================================
--- DROP TABLE IF EXISTS `chats`;
--- DROP TABLE IF EXISTS `order_details`;
--- DROP TABLE IF EXISTS `orders`;
--- DROP TABLE IF EXISTS `products`;
--- DROP TABLE IF EXISTS `users`;
+DROP TABLE IF EXISTS `comments`;
+DROP TABLE IF EXISTS `chats`;
+DROP TABLE IF EXISTS `order_details`;
+DROP TABLE IF EXISTS `orders`;
+DROP TABLE IF EXISTS `cart`;
+DROP TABLE IF EXISTS `products`;
+DROP TABLE IF EXISTS `users`;
 
 -- ========================================================
--- 3. CREATE TABLES
+-- CREATE TABLES (Buat urut dari Parent ke Child)
 -- ========================================================
 
--- Tabel Users (Admin & Customer)
-CREATE TABLE IF NOT EXISTS `users` (
+-- 1. Tabel Users
+CREATE TABLE `users` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `nama` VARCHAR(100) NOT NULL,
+  `username` VARCHAR(50) NOT NULL,
   `email` VARCHAR(100) NOT NULL,
   `password` VARCHAR(255) NOT NULL,
+  `profile_picture` VARCHAR(255) DEFAULT NULL,
   `role` ENUM('admin','customer') DEFAULT 'customer',
+  `is_online` TINYINT(1) DEFAULT 0,
+  `last_seen` TIMESTAMP NULL DEFAULT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Tabel Products
-CREATE TABLE IF NOT EXISTS `products` (
+-- 2. Tabel Products
+CREATE TABLE `products` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `nama_barang` VARCHAR(150) NOT NULL,
   `kategori` VARCHAR(50) NOT NULL,
@@ -47,20 +52,20 @@ CREATE TABLE IF NOT EXISTS `products` (
   `stok` INT(11) NOT NULL DEFAULT 0,
   `deskripsi` TEXT DEFAULT NULL,
   `gambar` VARCHAR(255) DEFAULT NULL,
-  `varian` TEXT DEFAULT NULL COMMENT 'JSON: [{"ram":"8","rom":"128","harga":7000000},...]',
+  `varian` TEXT DEFAULT NULL COMMENT 'Format JSON Array',
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `kategori` (`kategori`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Tabel Orders
-CREATE TABLE IF NOT EXISTS `orders` (
+-- 3. Tabel Orders (Transaksi Induk)
+CREATE TABLE `orders` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `user_id` INT(11) NOT NULL,
   `total_harga` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   `alamat` TEXT NOT NULL,
   `payment_method` VARCHAR(50) NOT NULL,
-  `payment_detail` TEXT DEFAULT NULL COMMENT 'No Rek / No E-wallet / COD',
+  `payment_detail` TEXT DEFAULT NULL,
   `status` ENUM('pending','paid','shipped','delivered','cancelled') DEFAULT 'pending',
   `catatan` TEXT DEFAULT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -68,47 +73,69 @@ CREATE TABLE IF NOT EXISTS `orders` (
   KEY `user_id` (`user_id`),
   KEY `status` (`status`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Tabel Order Details
-CREATE TABLE IF NOT EXISTS `order_details` (
+-- 4. Tabel Order Details (Item dalam Transaksi)
+CREATE TABLE `order_details` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
   `order_id` INT(11) NOT NULL,
   `product_id` INT(11) NOT NULL,
   `jumlah` INT(11) NOT NULL DEFAULT 1,
   `harga_satuan` DECIMAL(12,2) NOT NULL,
-  `varian` VARCHAR(50) DEFAULT NULL COMMENT 'Contoh: 8/256 GB',
+  `varian` VARCHAR(50) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `order_id` (`order_id`),
   KEY `product_id` (`product_id`),
   CONSTRAINT `order_details_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `order_details_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE RESTRICT ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Tabel Chats (Real-time Support)
-CREATE TABLE IF NOT EXISTS `chats` (
+-- 5. Tabel Chats (Live Chat System)
+CREATE TABLE `chats` (
   `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `user_id` INT(11) NOT NULL COMMENT 'Customer ID',
+  `user_id` INT(11) NOT NULL,
   `sender_role` ENUM('admin','customer') NOT NULL,
   `message` TEXT NOT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_user_id` (`user_id`),
-  KEY `idx_created_at` (`created_at`),
+  KEY `user_id` (`user_id`),
   CONSTRAINT `chats_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- ========================================================
--- 4. INITIAL DATA (SAMPING DEVELOPMENT)
--- ========================================================
+-- 6. Tabel Comments (Ulasan Produk Bersarang)
+CREATE TABLE `comments` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `product_id` INT(11) NOT NULL,
+  `user_id` INT(11) NOT NULL,
+  `parent_id` INT(11) DEFAULT NULL,
+  `komentar` TEXT NOT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `product_id` (`product_id`),
+  KEY `user_id` (`user_id`),
+  KEY `parent_id` (`parent_id`),
+  CONSTRAINT `comments_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `comments_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `comments_ibfk_3` FOREIGN KEY (`parent_id`) REFERENCES `comments` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Admin Default (Password: 123 | Hash bcrypt standar PHP)
-INSERT INTO `users` (`id`, `nama`, `email`, `password`, `role`, `created_at`) VALUES
-(1, 'Administrator', 'admin@7cellx.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', NOW());
--- ⚠️ CATATAN: Ganti hash password di atas dengan hasil password_hash('123', PASSWORD_DEFAULT) dari PHP Anda jika perlu.
+-- 7. Tabel Cart (Opsional / Standby)
+CREATE TABLE `cart` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `user_id` INT(11) NOT NULL,
+  `product_id` INT(11) NOT NULL,
+  `qty` INT(11) NOT NULL DEFAULT 1,
+  `varian` VARCHAR(50) DEFAULT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  KEY `product_id` (`product_id`),
+  CONSTRAINT `cart_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `cart_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Sample Product
-INSERT INTO `products` (`id`, `nama_barang`, `kategori`, `harga_min`, `harga_max`, `stok`, `deskripsi`, `gambar`, `varian`, `created_at`) VALUES
-(1, 'Galaxy S26 Basic', 'Samsung', 12000000.00, 15000000.00, 15, 'Smartphone flagship terbaru dengan kamera 200MP dan chipset generasi terbaru.', NULL, '[{"ram":"8","rom":"256","harga":12000000},{"ram":"12","rom":"256","harga":13500000},{"ram":"12","rom":"512","harga":15000000}]', NOW());
+-- Insert Admin
+INSERT INTO `users` (`nama`, `username`, `email`, `password`, `role`) VALUES
+('Administrator', 'admin', 'admin@7cellx.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
 
 COMMIT;

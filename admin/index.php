@@ -2,17 +2,36 @@
 session_start();
 require_once '../config/koneksi.php';
 
+/** @var mysqli $conn */
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
     exit;
 }
 
+$start_date = $_GET['start_date'] ?? date('Y-m-01');
+$end_date = $_GET['end_date'] ?? date('Y-m-t');
+
+$start_query = $start_date . ' 00:00:00';
+$end_query = $end_date . ' 23:59:59';
+
 $total_produk = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM products"))['total'] ?? 0;
 $stok_menipis = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM products WHERE stok <= 5"))['total'] ?? 0;
-$total_pesanan = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM orders"))['total'] ?? 0;
-$total_pendapatan = mysqli_fetch_assoc(mysqli_query($conn, "SELECT SUM(total_harga) as total FROM orders WHERE status IN ('paid', 'delivered')"))['total'] ?? 0;
 
-$pesanan_baru = mysqli_query($conn, "SELECT o.*, u.username FROM orders o LEFT JOIN users u ON o.user_id = u.id ORDER BY o.created_at DESC LIMIT 5");
+$stmt_pesanan = mysqli_prepare($conn, "SELECT COUNT(*) as total FROM orders WHERE created_at BETWEEN ? AND ?");
+mysqli_stmt_bind_param($stmt_pesanan, "ss", $start_query, $end_query);
+mysqli_stmt_execute($stmt_pesanan);
+$total_pesanan = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_pesanan))['total'] ?? 0;
+
+$stmt_pendapatan = mysqli_prepare($conn, "SELECT SUM(total_harga) as total FROM orders WHERE status IN ('paid', 'delivered') AND created_at BETWEEN ? AND ?");
+mysqli_stmt_bind_param($stmt_pendapatan, "ss", $start_query, $end_query);
+mysqli_stmt_execute($stmt_pendapatan);
+$total_pendapatan = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_pendapatan))['total'] ?? 0;
+
+$stmt_baru = mysqli_prepare($conn, "SELECT o.*, u.username FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE o.created_at BETWEEN ? AND ? ORDER BY o.created_at DESC LIMIT 10");
+mysqli_stmt_bind_param($stmt_baru, "ss", $start_query, $end_query);
+mysqli_stmt_execute($stmt_baru);
+$pesanan_baru = mysqli_stmt_get_result($stmt_baru);
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -21,215 +40,197 @@ $pesanan_baru = mysqli_query($conn, "SELECT o.*, u.username FROM orders o LEFT J
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin - 7CellX</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <style>
         :root {
-            --bg-dark: #0a0a0f;
-            --bg-card: #12121a;
-            --bg-hover: #1a1a25;
-            --accent-gold: #d4af37;
-            --accent-gold-light: #f4e5c2;
-            --accent-cyan: #00d4ff;
-            --accent-glow: rgba(0, 212, 255, 0.15);
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0b0;
-            --text-muted: #6b6b7b;
-            --border-color: rgba(255, 255, 255, 0.08);
-            --gradient-gold: linear-gradient(135deg, #d4af37 0%, #f4e5c2 50%, #d4af37 100%);
-            --gradient-glow: linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(0, 212, 255, 0.2) 100%);
+            --brand-pink: #E91E63;
+            --brand-purple: #9C27B0;
+            --brand-navy: #1A237E;
+            --bg-main: #F4F7FE;
+            --bg-card: #FFFFFF;
+            --text-dark: #0F172A;
+            --text-muted: #64748B;
+            --border-subtle: #E2E8F0;
+            --brand-gradient: linear-gradient(135deg, #E91E63 0%, #9C27B0 50%, #1A237E 100%);
+            --glow-shadow: 0 15px 35px rgba(156, 39, 176, 0.15);
+            --card-shadow: 0 8px 25px rgba(0, 0, 0, 0.03);
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Montserrat', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         body {
-            background: var(--bg-dark);
-            color: var(--text-primary);
+            background: var(--bg-main);
+            color: var(--text-dark);
             min-height: 100vh;
-        }
-
-        /* NAVBAR - Dark Premium */
-        .navbar {
-            background: rgba(18, 18, 26, 0.95);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border-color);
-            padding: 0;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        .container {
-            max-width: 1440px;
-            margin: 0 auto;
-            padding: 0 40px;
-        }
-
-        .navbar-content {
-            display: flex;
-            align-items: center;
-            height: 75px;
-        }
-
-        .navbar-brand {
-            font-size: 1.8rem;
-            font-weight: 900;
-            background: var(--gradient-gold);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            white-space: nowrap;
-            text-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
-        }
-
-        .navbar-brand i {
-            font-size: 2.2rem;
-            background: var(--gradient-gold);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.5));
-        }
-
-        .nav-menu {
-            display: flex;
-            gap: 8px;
-            list-style: none;
-            align-items: center;
-            margin-left: auto;
-            margin-right: 32px;
-        }
-
-        .nav-menu a {
-            text-decoration: none;
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: 0.9rem;
-            padding: 10px 18px;
-            border-radius: 12px;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            white-space: nowrap;
-            border: 1px solid transparent;
-        }
-
-        .nav-menu a:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border-color: var(--border-color);
-            transform: translateY(-2px);
-        }
-
-        .nav-menu a.active {
-            background: var(--gradient-glow);
-            color: var(--accent-cyan);
-            border-color: rgba(0, 212, 255, 0.3);
-            box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
-        }
-
-        .user-section {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            padding-left: 24px;
-            border-left: 1px solid var(--border-color);
-        }
-
-        .avatar-small {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid var(--accent-gold);
-            background: var(--bg-hover);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--accent-gold);
-            font-weight: 800;
-            font-size: 1.1rem;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
-        }
-
-        .user-display {
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
         }
 
-        .user-name {
-            font-size: 0.95rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 4px;
+        .navbar {
+            background: var(--brand-gradient) !important;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 100;
         }
 
-        .user-links {
-            display: flex;
-            gap: 16px;
-        }
-
-        .user-links a {
-            font-size: 0.8rem;
-            color: var(--text-muted);
+        .brand-pill {
+            background: #FFFFFF;
+            padding: 6px 20px 6px 8px;
+            border-radius: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
             text-decoration: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+
+        .brand-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .brand-logo-img {
+            height: 30px;
+            width: 30px;
+            border-radius: 50%;
+            object-fit: contain;
+        }
+
+        .text-gradient {
+            background: var(--brand-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.85) !important;
             font-weight: 600;
+            margin: 0 5px;
+            padding: 8px 16px !important;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: #FFFFFF !important;
+            transform: translateY(-1px);
+        }
+
+        .btn-white-nav {
+            background: #FFFFFF;
+            color: var(--brand-purple);
+            font-weight: 700;
+            padding: 8px 20px;
+            border-radius: 30px;
+            border: none;
             transition: all 0.3s;
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
         }
 
-        .user-links a:hover {
-            color: var(--accent-cyan);
-            transform: translateX(2px);
+        .btn-white-nav:hover {
+            transform: translateY(-2px);
+            color: var(--brand-pink);
         }
 
-        /* MAIN CONTENT */
+        .dropdown-menu {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            padding: 10px;
+            margin-top: 15px !important;
+        }
+
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-weight: 500;
+        }
+
         .main-content {
             padding: 40px 0;
-            background: var(--bg-dark);
+            flex-grow: 1;
         }
 
         .page-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 40px;
-            padding: 0 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
         }
 
         .page-header h1 {
-            font-size: 2.2rem;
-            font-weight: 900;
-            color: var(--text-primary);
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--brand-navy);
             display: flex;
             align-items: center;
-            gap: 14px;
-            text-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+            gap: 12px;
+            letter-spacing: -0.5px;
+            margin: 0;
         }
 
-        .page-header h1 i {
-            color: var(--accent-gold);
-            filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.5));
+        .filter-box {
+            background: var(--bg-card);
+            padding: 15px 25px;
+            border-radius: 20px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
-        /* STATS CARDS - Dark Premium */
+        .filter-box input[type="date"] {
+            border: 1px solid var(--border-subtle);
+            padding: 8px 15px;
+            border-radius: 10px;
+            font-weight: 600;
+            color: var(--text-dark);
+            outline: none;
+            background: #F8FAFC;
+        }
+
+        .filter-box input[type="date"]:focus {
+            border-color: var(--brand-purple);
+        }
+
+        .btn-filter {
+            background: var(--brand-gradient);
+            color: white;
+            border: none;
+            padding: 9px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+
+        .btn-filter:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--glow-shadow);
+        }
+
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 24px;
             margin-bottom: 40px;
         }
@@ -237,152 +238,110 @@ $pesanan_baru = mysqli_query($conn, "SELECT o.*, u.username FROM orders o LEFT J
         .stat-card {
             background: var(--bg-card);
             border-radius: 20px;
-            padding: 32px;
-            border: 1px solid var(--border-color);
+            padding: 25px;
+            border: 1px solid var(--border-subtle);
             display: flex;
             align-items: center;
-            gap: 24px;
-            transition: all 0.4s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--gradient-gold);
-            opacity: 0;
-            transition: opacity 0.3s;
+            gap: 20px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s;
         }
 
         .stat-card:hover {
             transform: translateY(-5px);
-            border-color: rgba(212, 175, 55, 0.3);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 30px rgba(212, 175, 55, 0.1);
-        }
-
-        .stat-card:hover::before {
-            opacity: 1;
+            box-shadow: var(--glow-shadow);
+            border-color: var(--brand-purple);
         }
 
         .stat-icon {
-            width: 75px;
-            height: 75px;
-            border-radius: 18px;
+            width: 65px;
+            height: 65px;
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
+            font-size: 1.8rem;
             color: white;
-            position: relative;
-            overflow: hidden;
         }
 
-        .stat-icon.gold {
-            background: linear-gradient(135deg, #d4af37 0%, #f4e5c2 100%);
-            box-shadow: 0 8px 25px rgba(212, 175, 55, 0.4);
+        .stat-icon.gradient-1 {
+            background: linear-gradient(135deg, #3B82F6, #2563EB);
         }
 
-        .stat-icon.green {
-            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
-            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        .stat-icon.gradient-2 {
+            background: linear-gradient(135deg, #F59E0B, #D97706);
         }
 
-        .stat-icon.blue {
-            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.4);
+        .stat-icon.gradient-3 {
+            background: linear-gradient(135deg, #10B981, #059669);
         }
 
-        .stat-icon.orange {
-            background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
-            box-shadow: 0 8px 25px rgba(245, 158, 11, 0.4);
+        .stat-icon.gradient-4 {
+            background: var(--brand-gradient);
         }
 
         .stat-info h3 {
-            font-size: 2.2rem;
-            font-weight: 900;
-            color: var(--text-primary);
-            margin-bottom: 6px;
-            background: var(--gradient-gold);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin-bottom: 4px;
         }
 
         .stat-info p {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
             font-weight: 600;
+            margin-bottom: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        /* CONTENT CARD - Dark */
         .content-card {
             background: var(--bg-card);
-            border-radius: 20px;
-            padding: 32px;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            border-radius: 24px;
+            padding: 30px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: var(--card-shadow);
         }
 
-        .card-header {
+        .card-header-custom {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 28px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed var(--border-subtle);
         }
 
-        .card-header h3 {
-            font-size: 1.4rem;
+        .card-header-custom h3 {
+            font-size: 1.3rem;
             font-weight: 800;
-            color: var(--text-primary);
+            color: var(--text-dark);
+            margin: 0;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
-        .card-header h3 i {
-            color: var(--accent-gold);
-        }
-
-        /* BUTTONS - Dark Theme */
-        .btn {
-            padding: 12px 24px;
+        .btn-primary-custom {
+            background: var(--brand-gradient);
+            color: white;
+            border: none;
+            padding: 10px 20px;
             border-radius: 12px;
             font-weight: 700;
-            cursor: pointer;
-            border: none;
+            transition: all 0.3s;
             text-decoration: none;
+            font-size: 0.9rem;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            font-size: 0.95rem;
-            transition: all 0.3s;
         }
 
-        .btn-primary {
-            background: var(--gradient-gold);
-            color: var(--bg-dark);
-            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 30px rgba(212, 175, 55, 0.5);
-        }
-
-        .btn-sm {
-            padding: 8px 16px;
-            font-size: 0.85rem;
-        }
-
-        /* TABLE - Dark Theme */
-        .table-responsive {
-            overflow-x: auto;
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--glow-shadow);
+            color: white;
         }
 
         table {
@@ -392,210 +351,123 @@ $pesanan_baru = mysqli_query($conn, "SELECT o.*, u.username FROM orders o LEFT J
 
         th {
             text-align: left;
-            padding: 16px 12px;
-            background: var(--bg-hover);
+            padding: 15px;
+            background: #F8FAFC;
             font-weight: 700;
-            color: var(--text-secondary);
-            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 2px solid var(--border-color);
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        th:first-child {
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }
+
+        th:last-child {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
         }
 
         td {
-            padding: 18px 12px;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-secondary);
+            padding: 16px 15px;
+            border-bottom: 1px solid #F1F5F9;
+            color: var(--text-dark);
+            font-weight: 500;
+            font-size: 0.95rem;
         }
 
         tr:hover td {
-            background: var(--bg-hover);
-            color: var(--text-primary);
+            background: #F8FAFC;
         }
 
         .badge {
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.8rem;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
             font-weight: 700;
-            text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .badge-pending {
-            background: rgba(245, 158, 11, 0.2);
-            color: #fbbf24;
-            border: 1px solid rgba(245, 158, 11, 0.3);
+            background: #FFFBEB;
+            color: #D97706;
         }
 
         .badge-paid {
-            background: rgba(59, 130, 246, 0.2);
-            color: #60a5fa;
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            background: #EFF6FF;
+            color: #2563EB;
         }
 
         .badge-shipped {
-            background: rgba(139, 92, 246, 0.2);
-            color: #a78bfa;
-            border: 1px solid rgba(139, 92, 246, 0.3);
+            background: #F5F3FF;
+            color: #7C3AED;
         }
 
         .badge-delivered {
-            background: rgba(16, 185, 129, 0.2);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            background: #ECFDF5;
+            color: #059669;
         }
 
         .badge-cancelled {
-            background: rgba(239, 68, 68, 0.2);
-            color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: #FEF2F2;
+            color: #DC2626;
         }
 
-        /* FOOTER */
-        .footer {
-            background: var(--bg-card);
-            color: var(--text-muted);
-            padding: 30px 0;
+        footer {
+            margin-top: auto;
+            background: var(--brand-gradient);
+            padding: 20px 0;
             text-align: center;
-            margin-top: 80px;
-            border-top: 1px solid var(--border-color);
-        }
-
-        /* GLOW EFFECTS */
-        .glow-text {
-            text-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
-        }
-
-        .glow-border {
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
-        }
-
-        /* RESPONSIVE */
-        @media (max-width: 1200px) {
-            .nav-menu {
-                gap: 4px;
-                margin-right: 20px;
-            }
-
-            .nav-menu a {
-                padding: 8px 12px;
-                font-size: 0.85rem;
-            }
-        }
-
-        @media (max-width: 992px) {
-            .navbar-content {
-                flex-wrap: wrap;
-                height: auto;
-                padding: 16px 0;
-                gap: 16px;
-            }
-
-            .nav-menu {
-                order: 3;
-                flex-wrap: wrap;
-                margin-left: 0;
-                margin-right: 0;
-                width: 100%;
-            }
-
-            .user-section {
-                margin-left: auto;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 0 20px;
-            }
-
-            .navbar-content {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .nav-menu {
-                flex-direction: column;
-            }
-
-            .user-section {
-                border-left: none;
-                padding-left: 0;
-                justify-content: center;
-                width: 100%;
-            }
-
-            .user-display {
-                align-items: center;
-            }
-
-            .page-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 16px;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
+            color: white;
         }
     </style>
 </head>
 
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <div class="navbar-content">
-                <a href="index.php" class="navbar-brand">
-                    <i class="bi bi-phone-fill"></i>
-                    7CellX Admin
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container d-lg-flex">
+            <div class="nav-zone-left" style="flex: 1;">
+                <a class="brand-pill" href="index.php">
+                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
+                        onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
                 </a>
-
-                <ul class="nav-menu">
-                    <li><a href="index.php"
-                            class="<?php echo basename($_SERVER['PHP_SELF']) == 'index.php' ? 'active' : ''; ?>">
-                            <i class="bi bi-house-door"></i> Dashboard
-                        </a></li>
-                    <li><a href="produk.php"
-                            class="<?php echo basename($_SERVER['PHP_SELF']) == 'produk.php' ? 'active' : ''; ?>">
-                            <i class="bi bi-box-seam"></i> Produk
-                        </a></li>
-                    <li><a href="pesanan.php"
-                            class="<?php echo basename($_SERVER['PHP_SELF']) == 'pesanan.php' ? 'active' : ''; ?>">
-                            <i class="bi bi-cart-check"></i> Pesanan
-                        </a></li>
-                    <li><a href="laporan.php"
-                            class="<?php echo basename($_SERVER['PHP_SELF']) == 'laporan.php' ? 'active' : ''; ?>">
-                            <i class="bi bi-graph-up-arrow"></i> Laporan
-                        </a></li>
-                    <li><a href="chat.php"
-                            class="<?php echo basename($_SERVER['PHP_SELF']) == 'chat.php' ? 'active' : ''; ?>">
-                            <i class="bi bi-chat-left-text"></i> Chat
-                        </a></li>
-                    <li><a href="../customer/katalog.php" target="_blank">
-                            <i class="bi bi-shop"></i> Lihat Toko
-                        </a></li>
+                <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
+                </button>
+            </div>
+            <div class="collapse navbar-collapse nav-zone-center justify-content-center" id="navbarNav">
+                <ul class="navbar-nav align-items-center gap-2 mt-3 mt-lg-0">
+                    <li class="nav-item"><a class="nav-link active d-flex align-items-center gap-2" href="index.php"><i
+                                class="bi bi-speedometer2"></i> Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="produk.php"><i
+                                class="bi bi-box-seam"></i> Produk</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
+                                class="bi bi-receipt"></i> Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
+                                class="bi bi-chat-dots"></i> Chat</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2"
+                            href="../customer/katalog.php" target="_blank"><i class="bi bi-shop"></i> Lihat Toko</a>
+                    </li>
                 </ul>
-
-                <div class="user-section">
-                    <?php if (!empty($_SESSION['profile_picture'])): ?>
-                        <img src="../uploads/profiles/<?php echo htmlspecialchars($_SESSION['profile_picture']); ?>"
-                            class="avatar-small" alt="Profile">
-                    <?php else: ?>
-                        <div class="avatar-small">
-                            <?php echo strtoupper(substr($_SESSION['username'] ?? 'A', 0, 1)); ?>
-                        </div>
-                    <?php endif; ?>
-                    <div class="user-display">
-                        <span class="user-name">
-                            <?php echo htmlspecialchars($_SESSION['username'] ?? $_SESSION['nama']); ?>
+            </div>
+            <div class="collapse navbar-collapse nav-zone-right justify-content-end" id="navbarNavRight"
+                style="flex: 1;">
+                <div class="dropdown">
+                    <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-shield-check fs-5 text-gradient"></i>
+                        <span class="text-gradient">
+                            <?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
                         </span>
-                        <div class="user-links">
-                            <a href="settings.php"><i class="bi bi-gear"></i> Settings</a>
-                            <a href="../auth/logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-                        </div>
-                    </div>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
+                                    class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -604,63 +476,64 @@ $pesanan_baru = mysqli_query($conn, "SELECT o.*, u.username FROM orders o LEFT J
     <main class="main-content">
         <div class="container">
             <div class="page-header">
-                <h1><i class="bi bi-speedometer2"></i> Dashboard</h1>
+                <h1><i class="bi bi-grid-fill text-muted"></i> Dashboard Overview</h1>
+                <form method="GET" class="filter-box">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted fw-bold small">DARI:</span>
+                        <input type="date" name="start_date" value="<?= htmlspecialchars($start_date) ?>" required>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted fw-bold small">SAMPAI:</span>
+                        <input type="date" name="end_date" value="<?= htmlspecialchars($end_date) ?>" required>
+                    </div>
+                    <button type="submit" class="btn-filter"><i class="bi bi-funnel-fill"></i> Filter Data</button>
+                </form>
             </div>
 
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-icon gold">
-                        <i class="bi bi-box"></i>
-                    </div>
+                    <div class="stat-icon gradient-1"><i class="bi bi-box-seam-fill"></i></div>
                     <div class="stat-info">
                         <h3>
-                            <?php echo $total_produk; ?>
+                            <?= $total_produk ?>
                         </h3>
-                        <p>Total Produk</p>
+                        <p>Total Semua Produk</p>
                     </div>
                 </div>
-
                 <div class="stat-card">
-                    <div class="stat-icon orange">
-                        <i class="bi bi-exclamation-triangle"></i>
-                    </div>
+                    <div class="stat-icon gradient-2"><i class="bi bi-exclamation-triangle-fill"></i></div>
                     <div class="stat-info">
                         <h3>
-                            <?php echo $stok_menipis; ?>
+                            <?= $stok_menipis ?>
                         </h3>
-                        <p>Stok Menipis</p>
+                        <p>Produk Menipis</p>
                     </div>
                 </div>
-
                 <div class="stat-card">
-                    <div class="stat-icon blue">
-                        <i class="bi bi-cart"></i>
-                    </div>
+                    <div class="stat-icon gradient-3"><i class="bi bi-cart-check-fill"></i></div>
                     <div class="stat-info">
                         <h3>
-                            <?php echo $total_pesanan; ?>
+                            <?= $total_pesanan ?>
                         </h3>
-                        <p>Total Pesanan</p>
+                        <p>Pesanan Masuk</p>
                     </div>
                 </div>
-
                 <div class="stat-card">
-                    <div class="stat-icon green">
-                        <i class="bi bi-wallet"></i>
-                    </div>
+                    <div class="stat-icon gradient-4"><i class="bi bi-wallet-fill"></i></div>
                     <div class="stat-info">
-                        <h3>Rp
-                            <?php echo number_format($total_pendapatan, 0, ',', '.'); ?>
+                        <h3 style="font-size: 1.4rem;">Rp
+                            <?= number_format($total_pendapatan, 0, ',', '.') ?>
                         </h3>
-                        <p>Total Pendapatan</p>
+                        <p>Pendapatan Bersih</p>
                     </div>
                 </div>
             </div>
 
             <div class="content-card">
-                <div class="card-header">
-                    <h3><i class="bi bi-clock-history"></i> Pesanan Terbaru</h3>
-                    <a href="pesanan.php" class="btn btn-primary btn-sm">Lihat Semua</a>
+                <div class="card-header-custom">
+                    <h3><i class="bi bi-clock-history text-muted"></i> Pesanan Berdasarkan Filter</h3>
+                    <a href="pesanan.php" class="btn-primary-custom">Kelola Semua Pesanan <i
+                            class="bi bi-arrow-right"></i></a>
                 </div>
                 <div class="table-responsive">
                     <table>
@@ -669,30 +542,37 @@ $pesanan_baru = mysqli_query($conn, "SELECT o.*, u.username FROM orders o LEFT J
                                 <th>ID</th>
                                 <th>Customer</th>
                                 <th>Tanggal</th>
-                                <th>Total</th>
+                                <th>Total Bayar</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while ($order = mysqli_fetch_assoc($pesanan_baru)): ?>
+                            <?php if ($pesanan_baru->num_rows > 0): ?>
+                                <?php while ($order = mysqli_fetch_assoc($pesanan_baru)): ?>
+                                    <tr>
+                                        <td class="fw-bold" style="color: var(--brand-purple);">#
+                                            <?= $order['id'] ?>
+                                        </td>
+                                        <td>
+                                            <?= htmlspecialchars($order['username'] ?? 'Guest') ?>
+                                        </td>
+                                        <td class="text-muted"><i class="bi bi-calendar2 me-1"></i>
+                                            <?= date('d/m/Y H:i', strtotime($order['created_at'])) ?>
+                                        </td>
+                                        <td class="fw-bold">Rp
+                                            <?= number_format($order['total_harga'], 0, ',', '.') ?>
+                                        </td>
+                                        <td><span class="badge badge-<?= $order['status'] ?>">
+                                                <?= strtoupper($order['status']) ?>
+                                            </span></td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            <?php else: ?>
                                 <tr>
-                                    <td><strong style="color: var(--accent-gold);">#
-                                            <?php echo $order['id']; ?>
-                                        </strong></td>
-                                    <td>
-                                        <?php echo htmlspecialchars($order['username'] ?? 'Guest'); ?>
-                                    </td>
-                                    <td>
-                                        <?php echo date('d/m/Y H:i', strtotime($order['created_at'])); ?>
-                                    </td>
-                                    <td style="color: var(--text-primary); font-weight: 600;">Rp
-                                        <?php echo number_format($order['total_harga'], 0, ',', '.'); ?>
-                                    </td>
-                                    <td><span class="badge badge-<?php echo $order['status']; ?>">
-                                            <?php echo ucfirst($order['status']); ?>
-                                        </span></td>
+                                    <td colspan="5" class="text-center py-4 text-muted fw-bold">Tidak ada data pesanan pada
+                                        rentang tanggal ini.</td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endif; ?>
                         </tbody>
                     </table>
                 </div>
@@ -700,13 +580,14 @@ $pesanan_baru = mysqli_query($conn, "SELECT o.*, u.username FROM orders o LEFT J
         </div>
     </main>
 
-    <footer class="footer">
-        <div class="container">
-            <p style="opacity: 0.8;">© 2024 7CellX - Premium Smartphone Store</p>
+    <footer>
+        <div class="container small fw-medium opacity-75">
+            &copy;
+            <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.
         </div>
     </footer>
 
-    <script>setInterval(() => location.reload(), 30000);</script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

@@ -52,6 +52,7 @@
             font-size: 1.8rem;
             font-weight: 800;
             background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-decoration: none;

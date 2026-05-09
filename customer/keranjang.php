@@ -2,6 +2,8 @@
 session_start();
 require_once '../config/koneksi.php';
 
+/** @var mysqli $conn */
+
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');
     exit;
@@ -9,40 +11,42 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = (int) $_SESSION['user_id'];
 $user_email = '';
-$user_query = mysqli_query($conn, "SELECT email FROM users WHERE id = $user_id");
-if ($user_query) {
-    $user_data = mysqli_fetch_assoc($user_query);
-    $user_email = $user_data['email'] ?? '';
-}
-
-$keranjang = $_SESSION['keranjang'] ?? [];
-
-$items = [];
-$total = 0;
-
-if (!empty($keranjang)) {
-    $ids = implode(',', array_map('intval', array_keys($keranjang)));
-    $query = "SELECT * FROM products WHERE id IN ($ids)";
-    $result = mysqli_query($conn, $query);
-
-    while ($produk = mysqli_fetch_assoc($result)) {
-        $qty = $keranjang[$produk['id']];
-        $harga = $produk['harga_min'] ?? $produk['harga'] ?? 0;
-        $subtotal = $harga * $qty;
-        $total += $subtotal;
-        $produk['qty'] = $qty;
-        $produk['subtotal'] = $subtotal;
-        $items[] = $produk;
-    }
+$stmt_user = mysqli_prepare($conn, "SELECT email FROM users WHERE id = ?");
+mysqli_stmt_bind_param($stmt_user, "i", $user_id);
+mysqli_stmt_execute($stmt_user);
+$res_user = mysqli_stmt_get_result($stmt_user);
+if ($row_user = mysqli_fetch_assoc($res_user)) {
+    $user_email = $row_user['email'];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['product_id']) && !isset($_POST['update']) && !isset($_POST['hapus']) && !isset($_POST['checkout'])) {
+        $product_id = (int) $_POST['product_id'];
+        $qty = isset($_POST['qty']) ? (int) $_POST['qty'] : 1;
+
+        if (!isset($_SESSION['keranjang'])) {
+            $_SESSION['keranjang'] = [];
+        }
+
+        if (isset($_SESSION['keranjang'][$product_id])) {
+            $_SESSION['keranjang'][$product_id] += $qty;
+        } else {
+            $_SESSION['keranjang'][$product_id] = $qty;
+        }
+
+        header('Location: keranjang.php');
+        exit;
+    }
+
     if (isset($_POST['update'])) {
-        foreach ($_POST['qty'] as $id => $qty) {
-            if ($qty > 0) {
-                $_SESSION['keranjang'][$id] = $qty;
-            } else {
-                unset($_SESSION['keranjang'][$id]);
+        if (isset($_POST['qty']) && is_array($_POST['qty'])) {
+            foreach ($_POST['qty'] as $id => $qty) {
+                $qty = (int) $qty;
+                if ($qty > 0) {
+                    $_SESSION['keranjang'][$id] = $qty;
+                } else {
+                    unset($_SESSION['keranjang'][$id]);
+                }
             }
         }
         header('Location: keranjang.php');
@@ -61,6 +65,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 }
+
+$keranjang = $_SESSION['keranjang'] ?? [];
+$items = [];
+$total = 0;
+
+if (!empty($keranjang)) {
+    $ids = implode(',', array_map('intval', array_keys($keranjang)));
+    $query = "SELECT * FROM products WHERE id IN ($ids)";
+    $result = mysqli_query($conn, $query);
+
+    while ($produk = mysqli_fetch_assoc($result)) {
+        $qty = $keranjang[$produk['id']];
+        $harga = $produk['harga_min'] ?? $produk['harga'] ?? 0;
+        $subtotal = $harga * $qty;
+        $total += $subtotal;
+        $produk['qty'] = $qty;
+        $produk['subtotal'] = $subtotal;
+        $items[] = $produk;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -68,116 +92,166 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Keranjang Belanja - 7Cellectronic</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    <title>Keranjang - 7CellX</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --gold-primary: #d4af37;
-            --gold-light: #f4e5c2;
-            --gold-dark: #aa8c2c;
-            --cream: #faf8f3;
-            --dark: #1a1a1a;
-            --gray: #6b7280;
+            --brand-pink: #E91E63;
+            --brand-purple: #9C27B0;
+            --brand-navy: #1A237E;
+            --bg-main: #F4F7FE;
+            --bg-card: #FFFFFF;
+            --text-dark: #0F172A;
+            --text-muted: #64748B;
+            --border-subtle: #E2E8F0;
+            --brand-gradient: linear-gradient(135deg, #E91E63 0%, #9C27B0 50%, #1A237E 100%);
+            --glow-shadow: 0 15px 35px rgba(156, 39, 176, 0.2);
+            --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
         }
 
         * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         body {
-            background: var(--cream);
+            background-color: var(--bg-main);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .navbar {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-            padding: 16px 0;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
+            background: var(--brand-gradient) !important;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 100;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 32px;
+        @media (min-width: 992px) {
+            .nav-zone-left {
+                flex: 1;
+                display: flex;
+                justify-content: flex-start;
+            }
+
+            .nav-zone-center {
+                flex: 2;
+                display: flex;
+                justify-content: center;
+            }
+
+            .nav-zone-right {
+                flex: 1;
+                display: flex;
+                justify-content: flex-end;
+            }
         }
 
-        .navbar-content {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .navbar-brand {
-            font-size: 1.8rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-decoration: none;
-            display: flex;
+        .brand-pill {
+            background: #FFFFFF;
+            padding: 6px 20px 6px 8px;
+            border-radius: 30px;
+            display: inline-flex;
             align-items: center;
             gap: 10px;
-        }
-
-        .nav-menu {
-            display: flex;
-            gap: 32px;
-            list-style: none;
-        }
-
-        .nav-menu a {
             text-decoration: none;
-            color: var(--gray);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+
+        .brand-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .brand-logo-img {
+            height: 30px;
+            width: 30px;
+            border-radius: 50%;
+            object-fit: contain;
+        }
+
+        .text-gradient {
+            background: var(--brand-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.85) !important;
             font-weight: 600;
-            font-size: 0.95rem;
+            margin: 0 5px;
+            padding: 8px 16px !important;
+            border-radius: 12px;
             transition: all 0.3s;
         }
 
-        .nav-menu a:hover {
-            color: var(--gold-primary);
+        .nav-link:hover,
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: #FFFFFF !important;
+            transform: translateY(-1px);
         }
 
-        .user-info {
-            text-align: right;
-            padding-left: 24px;
-            border-left: 2px solid #e5e7eb;
-        }
-
-        .user-email {
-            font-size: 0.85rem;
-            color: var(--gray);
-            margin-bottom: 4px;
-        }
-
-        .logout-link {
-            color: var(--gold-primary);
-            text-decoration: none;
+        .btn-white-nav {
+            background: #FFFFFF;
+            color: var(--brand-purple);
             font-weight: 700;
+            padding: 8px 20px;
+            border-radius: 30px;
+            border: none;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
+        }
+
+        .btn-white-nav:hover {
+            transform: translateY(-2px);
+            color: var(--brand-pink);
+        }
+
+        .dropdown-menu {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            padding: 10px;
+            margin-top: 15px !important;
+        }
+
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-weight: 500;
+        }
+
+        .dropdown-item:hover {
+            background: #F8FAFC;
+            color: var(--brand-purple);
         }
 
         .page-header {
-            background: linear-gradient(135deg, var(--gold-light) 0%, var(--cream) 100%);
-            padding: 60px 0 40px;
+            background: var(--brand-gradient);
+            padding: 50px 0 40px;
             margin-bottom: 40px;
+            color: white;
+            border-radius: 0 0 40px 40px;
+            box-shadow: var(--glow-shadow);
         }
 
         .page-header h1 {
             font-size: 2.5rem;
             font-weight: 800;
-            color: var(--dark);
             margin-bottom: 10px;
-        }
-
-        .page-header p {
-            color: var(--gray);
-            font-size: 1.1rem;
+            letter-spacing: -1px;
         }
 
         .cart-wrapper {
@@ -188,152 +262,167 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .cart-items {
-            background: white;
-            border-radius: 20px;
+            background: var(--bg-card);
+            border-radius: 24px;
             padding: 32px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-subtle);
         }
 
         .cart-item {
             display: grid;
-            grid-template-columns: 120px 1fr auto;
+            grid-template-columns: 140px 1fr auto;
             gap: 24px;
             padding: 24px 0;
-            border-bottom: 2px solid #f3f4f6;
+            border-bottom: 1px solid var(--border-subtle);
+            align-items: center;
         }
 
         .cart-item:last-child {
             border-bottom: none;
         }
 
-        .item-image {
+        .image-frame {
+            background: #F8FAFC;
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
             width: 120px;
-            height: 120px;
-            background: linear-gradient(135deg, #faf8f3 0%, #f0ebe3 100%);
-            border-radius: 12px;
-            overflow: hidden;
+            aspect-ratio: 1 / 1;
             display: flex;
             align-items: center;
             justify-content: center;
+            padding: 15px;
         }
 
-        .item-image img {
-            max-width: 90%;
-            max-height: 90%;
+        .image-frame img {
+            max-width: 100%;
+            max-height: 100%;
             object-fit: contain;
+            filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1));
         }
 
         .item-details h3 {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: var(--dark);
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: var(--text-dark);
             margin-bottom: 8px;
         }
 
-        .item-category {
-            color: var(--gold-primary);
-            font-size: 0.85rem;
-            font-weight: 600;
+        .variant-pill {
+            background: #F4F7FE;
+            color: var(--text-dark);
+            border: 1px solid var(--border-subtle);
+            font-size: 0.75rem;
+            padding: 6px 12px;
+            border-radius: 8px;
+            display: inline-flex;
+            font-weight: 700;
             margin-bottom: 12px;
         }
 
         .item-price {
             font-size: 1.3rem;
             font-weight: 800;
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+            background: var(--brand-gradient);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 16px;
         }
 
         .qty-control {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 12px;
+            background: #F8FAFC;
+            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+            overflow: hidden;
         }
 
         .qty-btn {
-            width: 36px;
-            height: 36px;
-            border: 2px solid #e5e7eb;
-            background: white;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: transparent;
+            font-weight: 800;
+            color: var(--brand-navy);
+            transition: background 0.2s;
         }
 
         .qty-btn:hover {
-            border-color: var(--gold-primary);
-            color: var(--gold-primary);
+            background: #E2E8F0;
         }
 
         .qty-input {
-            width: 60px;
-            height: 36px;
+            width: 50px;
+            border: none;
+            background: transparent;
             text-align: center;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-weight: 600;
-        }
-
-        .qty-input:focus {
+            font-weight: 800;
+            font-size: 1rem;
+            color: var(--text-dark);
             outline: none;
-            border-color: var(--gold-primary);
         }
 
         .item-subtotal {
             text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: center;
         }
 
         .item-subtotal h4 {
             font-size: 0.9rem;
-            color: var(--gray);
+            color: var(--text-muted);
             margin-bottom: 8px;
+            font-weight: 600;
         }
 
         .item-subtotal p {
             font-size: 1.4rem;
             font-weight: 800;
-            color: var(--dark);
+            color: var(--text-dark);
             margin-bottom: 16px;
         }
 
         .btn-remove {
-            background: #fee2e2;
-            color: #ef4444;
+            background: #FEF2F2;
+            color: #DC2626;
             border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-weight: 700;
             transition: all 0.3s;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .btn-remove:hover {
-            background: #ef4444;
+            background: #DC2626;
             color: white;
         }
 
         .cart-summary {
-            background: white;
-            border-radius: 20px;
+            background: var(--bg-card);
+            border-radius: 24px;
             padding: 32px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
-            height: fit-content;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-subtle);
             position: sticky;
-            top: 100px;
+            top: 120px;
+            height: fit-content;
         }
 
         .summary-title {
             font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--dark);
+            font-weight: 800;
+            color: var(--brand-navy);
             margin-bottom: 24px;
             padding-bottom: 16px;
-            border-bottom: 2px solid #f3f4f6;
+            border-bottom: 1px solid var(--border-subtle);
         }
 
         .summary-row {
@@ -343,96 +432,108 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         .summary-label {
-            color: var(--gray);
-            font-weight: 500;
+            color: var(--text-muted);
+            font-weight: 600;
         }
 
         .summary-value {
-            font-weight: 700;
-            color: var(--dark);
+            font-weight: 800;
+            color: var(--text-dark);
         }
 
         .summary-total {
             display: flex;
             justify-content: space-between;
             padding-top: 20px;
-            border-top: 3px solid var(--gold-primary);
+            border-top: 2px dashed var(--border-subtle);
             margin-top: 20px;
             margin-bottom: 28px;
+            align-items: center;
         }
 
         .summary-total .summary-label {
             font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--dark);
+            font-weight: 800;
+            color: var(--text-dark);
         }
 
         .summary-total .summary-value {
-            font-size: 1.8rem;
+            font-size: 1.6rem;
             font-weight: 800;
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+            background: var(--brand-gradient);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        .btn {
-            padding: 16px 28px;
-            border: none;
-            border-radius: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            font-size: 1rem;
-            width: 100%;
-        }
-
         .btn-primary {
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+            background: var(--brand-gradient);
             color: white;
+            border: none;
+            padding: 16px 28px;
+            border-radius: 16px;
+            font-weight: 700;
+            width: 100%;
+            transition: all 0.3s;
+            font-size: 1.05rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.4);
+            transform: translateY(-3px);
+            box-shadow: var(--glow-shadow);
+            color: white;
         }
 
         .btn-outline {
-            background: white;
-            color: var(--gold-primary);
-            border: 2px solid var(--gold-primary);
-            margin-bottom: 12px;
+            background: transparent;
+            color: var(--text-muted);
+            border: 2px solid var(--border-subtle);
+            padding: 16px 28px;
+            border-radius: 16px;
+            font-weight: 700;
+            width: 100%;
+            transition: all 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            margin-top: 15px;
         }
 
         .btn-outline:hover {
-            background: var(--gold-primary);
-            color: white;
+            background: #F8FAFC;
+            color: var(--brand-purple);
+            border-color: var(--brand-purple);
         }
 
         .empty-state {
             text-align: center;
-            padding: 100px 20px;
+            padding: 80px 20px;
             background: white;
-            border-radius: 24px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            border-radius: 30px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-subtle);
         }
 
         .empty-state i {
-            font-size: 5rem;
-            color: #d1d5db;
+            font-size: 6rem;
+            color: #E2E8F0;
             margin-bottom: 24px;
+            display: block;
         }
 
-        .footer {
-            background: var(--dark);
-            color: white;
-            padding: 40px 0 30px;
+        footer {
+            margin-top: auto;
+            background: var(--brand-gradient);
+            padding: 20px 0;
             text-align: center;
-            margin-top: 80px;
+            color: white;
         }
 
         @media (max-width: 1024px) {
@@ -445,60 +546,112 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             .cart-item {
-                grid-template-columns: 80px 1fr;
+                grid-template-columns: 100px 1fr;
                 gap: 16px;
+                align-items: start;
             }
 
             .item-subtotal {
                 grid-column: 1 / -1;
-                text-align: left;
                 display: flex;
+                flex-direction: row;
                 justify-content: space-between;
                 align-items: center;
+                border-top: 1px dashed var(--border-subtle);
+                padding-top: 15px;
+            }
+
+            .item-subtotal h4 {
+                margin-bottom: 0;
+            }
+
+            .item-subtotal p {
+                margin-bottom: 0;
             }
         }
     </style>
 </head>
 
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <div class="navbar-content">
-                <a href="katalog.php" class="navbar-brand">
-                    <i class="fas fa-bolt"></i>
-                    7Cellectronic
+
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container d-lg-flex px-4">
+            <div class="nav-zone-left">
+                <a class="brand-pill" href="index.php">
+                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
+                        onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
-                <ul class="nav-menu">
-                    <li><a href="katalog.php"><i class="fas fa-store"></i> Katalog</a></li>
-                    <li><a href="pesanan.php"><i class="fas fa-box"></i> Pesanan</a></li>
+                <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
+                </button>
+            </div>
+            <div class="collapse navbar-collapse nav-zone-center" id="navbarNav">
+                <ul class="navbar-nav align-items-center gap-3 mt-3 mt-lg-0">
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="katalog.php"><i
+                                class="bi bi-grid-fill fs-5"></i> Katalog</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center gap-2 position-relative active"
+                            href="keranjang.php">
+                            <i class="bi bi-cart3 fs-5"></i> Keranjang
+                            <?php
+                            $cart_count = isset($_SESSION['keranjang']) ? count($_SESSION['keranjang']) : 0;
+                            if ($cart_count > 0):
+                                ?>
+                                <span
+                                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-2 border-white"
+                                    style="font-size: 0.6rem;">
+                                    <?= $cart_count ?>
+                                </span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
+                                class="bi bi-receipt fs-5"></i> Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
+                                class="bi bi-chat-dots fs-5"></i> Chat Seller</a></li>
                 </ul>
-                <div class="user-info">
-                    <div class="user-email">
-                        <?php echo htmlspecialchars($user_email); ?>
+            </div>
+            <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight">
+                <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0 w-100 justify-content-lg-end">
+                    <div class="dropdown">
+                        <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-person-circle fs-5 text-gradient"></i>
+                            <span class="text-gradient">
+                                <?= htmlspecialchars($_SESSION['username'] ?? $_SESSION['nama'] ?? 'User') ?>
+                            </span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="profile.php"><i class="bi bi-gear me-2"></i>Settings</a>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
+                                        class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        </ul>
                     </div>
-                    <a href="../auth/logout.php" class="logout-link">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
                 </div>
             </div>
         </div>
     </nav>
 
     <div class="page-header">
-        <div class="container">
-            <h1><i class="fas fa-shopping-cart me-3"></i>Keranjang Belanja</h1>
-            <p>Kelola pesanan Anda dengan mudah dan aman</p>
+        <div class="container text-center">
+            <h1>Keranjang Belanja</h1>
+            <p class="mb-0 opacity-75">Selesaikan pesanan Anda sebelum kehabisan stok.</p>
         </div>
     </div>
 
-    <div class="container">
+    <div class="container flex-grow-1">
         <?php if (empty($items)): ?>
             <div class="empty-state">
-                <i class="fas fa-shopping-cart"></i>
-                <h3>Keranjang Anda Kosong</h3>
-                <p style="color: var(--gray); margin: 12px 0 28px;">Mulai belanja dan temukan smartphone impian Anda</p>
-                <a href="katalog.php" class="btn btn-primary" style="max-width: 300px;">
-                    <i class="fas fa-store me-2"></i>Mulai Belanja
+                <i class="bi bi-cart-x"></i>
+                <h3 class="fw-bold" style="color: var(--brand-navy);">Keranjang Anda Kosong</h3>
+                <p class="text-muted mb-4">Mulai eksplorasi dan temukan smartphone impian Anda di katalog kami.</p>
+                <a href="katalog.php" class="btn-primary d-inline-flex m-auto" style="max-width: 250px;">
+                    <i class="bi bi-grid-fill"></i> Eksplorasi Katalog
                 </a>
             </div>
         <?php else: ?>
@@ -507,51 +660,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="cart-items">
                         <?php foreach ($items as $item): ?>
                             <div class="cart-item">
-                                <div class="item-image">
-                                    <img src="<?php echo !empty($item['gambar']) ? '../uploads/' . $item['gambar'] : 'https://images.unsplash.com/photo-1592899677712-a5a254503381?w=200&h=200&fit=crop'; ?>"
-                                        alt="<?php echo htmlspecialchars($item['nama_barang']); ?>">
+                                <div class="image-frame">
+                                    <img src="<?= !empty($item['gambar']) ? '../uploads/' . $item['gambar'] : 'https://via.placeholder.com/200x200/F8FAFC/9C27B0?text=No+Image' ?>"
+                                        alt="<?= htmlspecialchars($item['nama_barang']) ?>">
                                 </div>
                                 <div class="item-details">
                                     <h3>
-                                        <?php echo htmlspecialchars($item['nama_barang']); ?>
+                                        <?= htmlspecialchars($item['nama_barang']) ?>
                                     </h3>
-                                    <div class="item-category">
-                                        <?php echo htmlspecialchars($item['kategori']); ?>
+
+                                    <div class="d-flex flex-wrap gap-2 mb-2">
+                                        <?php
+                                        $varian = json_decode($item['varian'] ?? '[]', true);
+                                        if ($varian && is_array($varian) && count($varian) > 0 && isset($varian[0]['ram']) && isset($varian[0]['rom'])):
+                                            ?>
+                                            <span class="variant-pill">
+                                                <?= htmlspecialchars($varian[0]['ram']) ?>/
+                                                <?= htmlspecialchars($varian[0]['rom']) ?> GB
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="variant-pill">Custom Spec</span>
+                                        <?php endif; ?>
                                     </div>
+
                                     <div class="item-price">Rp
-                                        <?php echo number_format($item['harga_min'] ?? $item['harga'], 0, ',', '.'); ?>
+                                        <?= number_format($item['harga_min'] ?? $item['harga'], 0, ',', '.') ?>
                                     </div>
                                     <div class="qty-control">
-                                        <button type="button" class="qty-btn"
-                                            onclick="updateQty(<?php echo $item['id']; ?>, -1)">
-                                            <i class="fas fa-minus"></i>
-                                        </button>
-                                        <input type="number" name="qty[<?php echo $item['id']; ?>]" value="<?php echo $item['qty']; ?>" min="1"
-                                            max="<?php echo $item['stok']; ?>" data-max="<?php echo $item['stok']; ?>" class="qty-input"
-                                            onchange="this.form.submit()">
-                                        <button type="button" class="qty-btn"
-                                            onclick="updateQty(<?php echo $item['id']; ?>, 1)">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
+                                        <button type="button" class="qty-btn" onclick="updateQty(<?= $item['id'] ?>, -1)"><i
+                                                class="bi bi-dash"></i></button>
+                                        <input type="number" name="qty[<?= $item['id'] ?>]" value="<?= $item['qty'] ?>" min="1"
+                                            max="<?= $item['stok'] ?>" data-max="<?= $item['stok'] ?>" class="qty-input"
+                                            readonly>
+                                        <button type="button" class="qty-btn" onclick="updateQty(<?= $item['id'] ?>, 1)"><i
+                                                class="bi bi-plus"></i></button>
                                     </div>
                                 </div>
                                 <div class="item-subtotal">
-                                    <h4>Subtotal</h4>
-                                    <p>Rp
-                                        <?php echo number_format($item['subtotal'], 0, ',', '.'); ?>
-                                    </p>
-                                    <button type="submit" name="hapus" value="1" class="btn-remove"
-                                        onclick="return confirm('Hapus item ini?')">
-                                        <i class="fas fa-trash me-2"></i>Hapus
-                                    </button>
-                                    <input type="hidden" name="id" value="<?php echo $item['id']; ?>">
+                                    <div class="d-flex flex-column align-items-end justify-content-center h-100">
+                                        <h4>Subtotal</h4>
+                                        <p>Rp
+                                            <?= number_format($item['subtotal'], 0, ',', '.') ?>
+                                        </p>
+                                        <input type="hidden" name="id" value="<?= $item['id'] ?>" disabled
+                                            id="del_id_<?= $item['id'] ?>">
+                                        <button type="button" class="btn-remove" onclick="hapusItem(<?= $item['id'] ?>)">
+                                            <i class="bi bi-trash3-fill"></i> Hapus
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
 
-                        <button type="submit" name="update" class="btn btn-outline">
-                            <i class="fas fa-sync-alt me-2"></i>Update Keranjang
-                        </button>
+                        <div class="d-flex justify-content-end mt-4 pt-3 border-top border-subtle">
+                            <button type="submit" name="update" class="btn-outline"
+                                style="width: auto; padding: 12px 24px; margin-top: 0;">
+                                <i class="bi bi-arrow-repeat"></i> Perbarui Keranjang
+                            </button>
+                        </div>
                     </div>
 
                     <div class="cart-summary">
@@ -559,20 +725,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="summary-row">
                             <span class="summary-label">Total Item</span>
                             <span class="summary-value">
-                                <?php echo count($items); ?> produk
+                                <?= count($items) ?> Produk
                             </span>
                         </div>
                         <div class="summary-total">
-                            <span class="summary-label">Total Pembayaran</span>
+                            <span class="summary-label">Total Bayar</span>
                             <span class="summary-value">Rp
-                                <?php echo number_format($total, 0, ',', '.'); ?>
+                                <?= number_format($total, 0, ',', '.') ?>
                             </span>
                         </div>
-                        <button type="submit" name="checkout" class="btn btn-primary">
-                            <i class="fas fa-lock me-2"></i>Checkout Sekarang
+                        <button type="submit" name="checkout" class="btn-primary mb-3">
+                            <i class="bi bi-lock-fill"></i> Checkout Sekarang
                         </button>
-                        <a href="katalog.php" class="btn btn-outline">
-                            <i class="fas fa-arrow-left me-2"></i>Lanjut Belanja
+                        <a href="katalog.php" class="btn-outline" style="margin-top: 0;">
+                            <i class="bi bi-arrow-left"></i> Lanjut Belanja
                         </a>
                     </div>
                 </div>
@@ -580,29 +746,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
     </div>
 
-    <footer class="footer">
-        <div class="container">
-            <div style="font-size: 1.6rem; font-weight: 800; margin-bottom: 12px; color: var(--gold-primary);">
-                <i class="fas fa-bolt me-2"></i>7Cellectronic
-            </div>
-            <p style="opacity: 0.8;">Premium Smartphone Store</p>
-            <p style="margin-top: 16px; opacity: 0.6;">© 2024 - Project UAS PBW</p>
+    <footer>
+        <div class="container small fw-medium opacity-75">
+            &copy;
+            <?= date('Y') ?> 7CellX. Engineered with precision.
         </div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-    function updateQty(id, change) {
-        const input = document.querySelector('input[name="qty[' + id + ']"]');
-        const maxStock = parseInt(input.getAttribute('data-max'));
-        let newValue = parseInt(input.value) + change;
-        
-        if (newValue < 1) newValue = 1;
-        if (newValue > maxStock) newValue = maxStock;
-        
-        input.value = newValue;
-        input.form.submit();
-    }
-</script>
+        function updateQty(id, change) {
+            const input = document.querySelector('input[name="qty[' + id + ']"]');
+            const maxStock = parseInt(input.getAttribute('data-max'));
+            let newValue = parseInt(input.value) + change;
+
+            if (newValue < 1) newValue = 1;
+            if (newValue > maxStock) newValue = maxStock;
+
+            input.value = newValue;
+            input.form.submit();
+        }
+
+        function hapusItem(id) {
+            if (confirm('Hapus item ini dari keranjang?')) {
+                const delInput = document.getElementById('del_id_' + id);
+                delInput.disabled = false;
+                const form = document.createElement('form');
+                form.method = 'POST';
+                const inputHapus = document.createElement('input');
+                inputHapus.type = 'hidden';
+                inputHapus.name = 'hapus';
+                inputHapus.value = '1';
+                form.appendChild(delInput.cloneNode(true));
+                form.appendChild(inputHapus);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+    </script>
 </body>
 
 </html>

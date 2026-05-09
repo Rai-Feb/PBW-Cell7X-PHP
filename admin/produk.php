@@ -2,6 +2,8 @@
 session_start();
 require_once '../config/koneksi.php';
 
+/** @var mysqli $conn */
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
     exit;
@@ -26,179 +28,193 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kelola Produk - 7CellX</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <title>Kelola Produk - 7CellX Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <style>
         :root {
-            --gold-primary: #d4af37;
-            --gold-light: #f4e5c2;
-            --gold-dark: #aa8c2c;
-            --cream: #faf8f3;
-            --dark: #1a1a1a;
-            --gray: #6b7280;
+            --brand-pink: #E91E63;
+            --brand-purple: #9C27B0;
+            --brand-navy: #1A237E;
+            --bg-main: #F4F7FE;
+            --bg-card: #FFFFFF;
+            --text-dark: #0F172A;
+            --text-muted: #64748B;
+            --border-subtle: #E2E8F0;
+            --brand-gradient: linear-gradient(135deg, #E91E63 0%, #9C27B0 50%, #1A237E 100%);
+            --glow-shadow: 0 15px 35px rgba(156, 39, 176, 0.15);
+            --card-shadow: 0 8px 25px rgba(0, 0, 0, 0.03);
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Montserrat', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         body {
-            background: var(--cream);
+            background: var(--bg-main);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .navbar {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-            padding: 16px 0;
+            background: var(--brand-gradient) !important;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 100;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 0 32px;
+        @media (min-width: 992px) {
+            .nav-zone-left {
+                flex: 1;
+                display: flex;
+                justify-content: flex-start;
+            }
+
+            .nav-zone-center {
+                flex: 2;
+                display: flex;
+                justify-content: center;
+            }
+
+            .nav-zone-right {
+                flex: 1;
+                display: flex;
+                justify-content: flex-end;
+            }
         }
 
-        .navbar-content {
-            display: flex;
+        .brand-pill {
+            background: #FFFFFF;
+            padding: 6px 20px 6px 8px;
+            border-radius: 30px;
+            display: inline-flex;
             align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
         }
 
-        .navbar-brand {
-            font-size: 1.8rem;
-            font-weight: 900;
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+        .brand-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .brand-logo-img {
+            height: 30px;
+            width: 30px;
+            border-radius: 50%;
+            object-fit: contain;
+        }
+
+        .text-gradient {
+            background: var(--brand-gradient);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
-            text-decoration: none;
         }
 
-        .nav-right {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            margin-left: auto;
-        }
-
-        .nav-menu {
-            display: flex;
-            gap: 20px;
-            list-style: none;
-            align-items: center;
-        }
-
-        .nav-menu a {
-            text-decoration: none;
-            color: var(--gray);
+        .nav-link {
+            color: rgba(255, 255, 255, 0.85) !important;
             font-weight: 600;
-            font-size: 0.95rem;
+            margin: 0 5px;
+            padding: 8px 16px !important;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: #FFFFFF !important;
+            transform: translateY(-1px);
+        }
+
+        .btn-white-nav {
+            background: #FFFFFF;
+            color: var(--brand-purple);
+            font-weight: 700;
+            padding: 8px 20px;
+            border-radius: 30px;
+            border: none;
             transition: all 0.3s;
             display: flex;
             align-items: center;
             gap: 8px;
-        }
-
-        .nav-menu a:hover,
-        .nav-menu a.active {
-            color: var(--gold-primary);
-        }
-
-        .user-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding-left: 20px;
-            border-left: 2px solid #e5e7eb;
-        }
-
-        .avatar-small {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid var(--gold-light);
-        }
-
-        .user-display {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-        }
-
-        .user-name {
-            font-size: 0.9rem;
-            font-weight: 700;
-            color: var(--dark);
-        }
-
-        .user-links {
-            display: flex;
-            gap: 12px;
-        }
-
-        .user-links a {
-            font-size: 0.85rem;
-            color: var(--gold-primary);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             text-decoration: none;
-            font-weight: 600;
+        }
+
+        .btn-white-nav:hover {
+            transform: translateY(-2px);
+            color: var(--brand-pink);
+        }
+
+        .dropdown-menu {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            padding: 10px;
+            margin-top: 15px !important;
         }
 
         .main-content {
-            padding: 30px 0;
+            padding: 40px 0;
+            flex-grow: 1;
         }
 
         .page-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 32px;
+            margin-bottom: 30px;
         }
 
         .page-header h1 {
             font-size: 2rem;
-            font-weight: 900;
-            color: var(--dark);
+            font-weight: 800;
+            color: var(--brand-navy);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: -0.5px;
         }
 
-        .btn {
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-weight: 700;
-            cursor: pointer;
+        .btn-primary-custom {
+            background: var(--brand-gradient);
+            color: white;
             border: none;
+            padding: 12px 24px;
+            border-radius: 14px;
+            font-weight: 700;
+            transition: all 0.3s;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 8px;
             font-size: 0.95rem;
-            transition: all 0.3s;
         }
 
-        .btn-primary {
-            background: linear-gradient(135deg, var(--gold-primary), var(--gold-dark));
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--glow-shadow);
             color: white;
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            color: white;
-        }
-
-        .btn-sm {
-            padding: 8px 16px;
-            font-size: 0.85rem;
         }
 
         .content-card {
-            background: white;
-            border-radius: 20px;
-            padding: 32px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 30px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: var(--card-shadow);
         }
 
         table {
@@ -208,125 +224,159 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
 
         th {
             text-align: left;
-            padding: 14px 12px;
-            background: var(--cream);
+            padding: 15px;
+            background: #F8FAFC;
             font-weight: 700;
-            color: var(--dark);
-            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        th:first-child {
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+        }
+
+        th:last-child {
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
         }
 
         td {
-            padding: 16px 12px;
-            border-bottom: 1px solid #f3f4f6;
-            color: var(--gray);
+            padding: 16px 15px;
+            border-bottom: 1px solid #F1F5F9;
+            color: var(--text-dark);
+            font-weight: 500;
+            font-size: 0.95rem;
             vertical-align: middle;
         }
 
         tr:hover td {
-            background: var(--cream);
+            background: #F8FAFC;
         }
 
         .product-thumb {
             width: 60px;
             height: 60px;
-            object-fit: cover;
-            border-radius: 8px;
+            object-fit: contain;
+            border-radius: 12px;
+            background: #F8FAFC;
+            padding: 5px;
+            border: 1px solid var(--border-subtle);
         }
 
         .badge {
             padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.8rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
             font-weight: 700;
+            letter-spacing: 0.5px;
         }
 
         .badge-success {
-            background: #d1fae5;
-            color: #065f46;
+            background: #ECFDF5;
+            color: #059669;
+            border: 1px solid #A7F3D0;
         }
 
         .badge-warning {
-            background: #fef3c7;
-            color: #92400e;
+            background: #FFFBEB;
+            color: #D97706;
+            border: 1px solid #FDE68A;
         }
 
         .badge-danger {
-            background: #fee2e2;
-            color: #991b1b;
+            background: #FEF2F2;
+            color: #DC2626;
+            border: 1px solid #FECACA;
         }
 
-        .footer {
-            background: var(--dark);
+        .btn-action {
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-edit {
+            background: #F4F7FE;
+            color: var(--brand-purple);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .btn-edit:hover {
+            background: var(--brand-purple);
             color: white;
-            padding: 30px 0;
-            text-align: center;
-            margin-top: 60px;
+            border-color: transparent;
         }
 
-        @media (max-width: 768px) {
-            .navbar-content {
-                flex-direction: column;
-                gap: 16px;
-            }
+        .btn-delete {
+            background: #FEF2F2;
+            color: #DC2626;
+            border: 1px solid #FECACA;
+        }
 
-            .nav-right {
-                flex-direction: column;
-                gap: 16px;
-                margin-left: 0;
-                width: 100%;
-                justify-content: center;
-            }
+        .btn-delete:hover {
+            background: #DC2626;
+            color: white;
+        }
 
-            .user-section {
-                border-left: none;
-                padding-left: 0;
-                align-items: center;
-            }
-
-            .page-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 16px;
-            }
+        footer {
+            margin-top: auto;
+            background: var(--brand-gradient);
+            padding: 20px 0;
+            text-align: center;
+            color: white;
         }
     </style>
 </head>
 
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <div class="navbar-content">
-                <a href="index.php" class="navbar-brand"><i class="bi bi-lightning-charge-fill"></i>7CellX Admin</a>
-                <div class="nav-right">
-                    <ul class="nav-menu">
-                        <li><a href="index.php"><i class="bi bi-house"></i> Dashboard</a></li>
-                        <li><a href="produk.php" class="active"><i class="bi bi-box"></i> Produk</a></li>
-                        <li><a href="pesanan.php"><i class="bi bi-cart"></i> Pesanan</a></li>
-                        <li><a href="laporan.php"><i class="bi bi-graph-up"></i> Laporan</a></li>
-                        <li><a href="chat.php"><i class="bi bi-chat-dots"></i> Chat</a></li>
-                        <li><a href="../customer/katalog.php" target="_blank"><i class="bi bi-eye"></i> Lihat Toko</a>
-                        </li>
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container d-lg-flex px-4">
+            <div class="nav-zone-left" style="flex: 1;">
+                <a class="brand-pill" href="index.php">
+                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
+                        onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
+                </a>
+                <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
+                </button>
+            </div>
+            <div class="collapse navbar-collapse nav-zone-center justify-content-center" id="navbarNav">
+                <ul class="navbar-nav align-items-center gap-2 mt-3 mt-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="index.php"><i class="bi bi-speedometer2"></i>
+                            Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="produk.php"><i class="bi bi-box-seam"></i>
+                            Produk</a></li>
+                    <li class="nav-item"><a class="nav-link" href="pesanan.php"><i class="bi bi-receipt"></i>
+                            Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="chat.php"><i class="bi bi-chat-dots"></i> Chat</a>
+                    </li>
+                </ul>
+            </div>
+            <div class="collapse navbar-collapse nav-zone-right justify-content-end" id="navbarNavRight"
+                style="flex: 1;">
+                <div class="dropdown">
+                    <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-shield-check fs-5 text-gradient"></i>
+                        <span class="text-gradient">
+                            <?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
+                                    class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                     </ul>
-                    <div class="user-section">
-                        <?php if (!empty($_SESSION['profile_picture'])): ?>
-                            <img src="../uploads/profiles/<?php echo htmlspecialchars($_SESSION['profile_picture']); ?>"
-                                class="avatar-small">
-                        <?php else: ?>
-                            <div class="avatar-small"
-                                style="background: var(--gold-light); display: flex; align-items: center; justify-content: center; color: var(--gold-dark); font-weight: 700;">
-                                <?php echo strtoupper(substr($_SESSION['username'] ?? 'A', 0, 1)); ?>
-                            </div>
-                        <?php endif; ?>
-                        <div class="user-display">
-                            <span class="user-name">
-                                <?php echo htmlspecialchars($_SESSION['username'] ?? $_SESSION['nama']); ?>
-                            </span>
-                            <div class="user-links">
-                                <a href="settings.php"><i class="bi bi-gear"></i> Settings</a>
-                                <a href="../auth/logout.php"><i class="bi bi-box-arrow-right"></i> Logout</a>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -335,11 +385,20 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
     <main class="main-content">
         <div class="container">
             <div class="page-header">
-                <h1><i class="bi bi-box"></i> Kelola Produk</h1>
-                <a href="tambah_produk.php" class="btn btn-primary"><i class="bi bi-plus"></i> Tambah Produk</a>
+                <h1><i class="bi bi-box2-heart text-muted"></i> Manajemen Produk</h1>
+                <a href="tambah_produk.php" class="btn-primary-custom"><i class="bi bi-plus-circle-fill"></i> Tambah
+                    Produk</a>
             </div>
 
             <div class="content-card">
+                <?php if (isset($_SESSION['success'])): ?>
+                    <div class="alert alert-success rounded-4 fw-bold mb-4">
+                        <i class="bi bi-check-circle-fill me-2"></i>
+                        <?= htmlspecialchars($_SESSION['success']) ?>
+                    </div>
+                    <?php unset($_SESSION['success']); ?>
+                <?php endif; ?>
+
                 <div class="table-responsive">
                     <table>
                         <thead>
@@ -347,9 +406,9 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
                                 <th>ID</th>
                                 <th>Produk</th>
                                 <th>Kategori</th>
-                                <th>Varian</th>
-                                <th>Harga</th>
-                                <th>Stok</th>
+                                <th>Varian RAM/ROM (Stok)</th>
+                                <th>Harga Dasar</th>
+                                <th>Total Stok</th>
                                 <th>Status</th>
                                 <th>Aksi</th>
                             </tr>
@@ -360,51 +419,59 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
                                 $varian_count = is_array($varian) ? count($varian) : 0;
                                 ?>
                                 <tr>
-                                    <td><strong>#
-                                            <?php echo $p['id']; ?>
-                                        </strong></td>
+                                    <td class="fw-bold" style="color: var(--brand-purple);">#
+                                        <?= $p['id']; ?>
+                                    </td>
                                     <td>
-                                        <div style="display: flex; align-items: center; gap: 12px;">
-                                            <?php if (!empty($p['gambar'])): ?>
-                                                <img src="../uploads/<?php echo $p['gambar']; ?>" class="product-thumb">
-                                            <?php endif; ?>
+                                        <div style="display: flex; align-items: center; gap: 15px;">
+                                            <img src="../uploads/<?= htmlspecialchars($p['gambar']) ?>"
+                                                class="product-thumb"
+                                                onerror="this.src='https://via.placeholder.com/60/F8FAFC/9C27B0?text=HP'">
                                             <div>
-                                                <div style="font-weight: 600; color: var(--dark);">
-                                                    <?php echo htmlspecialchars($p['nama_barang']); ?>
+                                                <div style="font-weight: 700; color: var(--text-dark);">
+                                                    <?= htmlspecialchars($p['nama_barang']); ?>
                                                 </div>
-                                                <div style="font-size: 0.85rem; color: var(--gray);">
-                                                    <?php echo $varian_count; ?> varian
+                                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+                                                    <i class="bi bi-tags"></i>
+                                                    <?= $varian_count; ?> varian
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td>
-                                        <?php echo htmlspecialchars($p['kategori']); ?>
+                                    <td class="fw-bold text-muted">
+                                        <?= htmlspecialchars($p['kategori']); ?>
                                     </td>
                                     <td>
                                         <?php if ($varian_count > 0): ?>
-                                            <div style="font-size: 0.85rem; color: var(--gray);">
-                                                <?php foreach (array_slice($varian, 0, 2) as $v): ?>
-                                                    <div>
-                                                        <?php echo $v['ram']; ?>/
-                                                        <?php echo $v['rom']; ?> GB
+                                            <div
+                                                style="font-size: 0.85rem; color: var(--text-dark); font-weight: 600; display: flex; flex-wrap: wrap; gap: 6px;">
+                                                <?php foreach (array_slice($varian, 0, 3) as $v): ?>
+                                                    <div
+                                                        style="background: #F8FAFC; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-subtle); display: inline-flex; align-items: center; gap: 6px;">
+                                                        <?= htmlspecialchars($v['ram']) ?>/
+                                                        <?= htmlspecialchars($v['rom']) ?> GB
+                                                        <span
+                                                            style="background: rgba(156, 39, 176, 0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; color: var(--brand-purple);">Stok:
+                                                            <?= (int) ($v['stok'] ?? 0) ?>
+                                                        </span>
                                                     </div>
                                                 <?php endforeach; ?>
-                                                <?php if ($varian_count > 2): ?>
-                                                    <div style="color: var(--gold-primary);">+
-                                                        <?php echo ($varian_count - 2); ?> lainnya
-                                                    </div>
+                                                <?php if ($varian_count > 3): ?>
+                                                    <span
+                                                        style="color: var(--brand-pink); font-size: 0.75rem; font-weight: 800; display: inline-flex; align-items: center;">+
+                                                        <?= ($varian_count - 3); ?>
+                                                    </span>
                                                 <?php endif; ?>
                                             </div>
                                         <?php else: ?>
-                                            <span style="color: var(--gray);">-</span>
+                                            <span class="text-muted">-</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td>Rp
-                                        <?php echo number_format($p['harga_min'], 0, ',', '.'); ?>
+                                    <td class="fw-bold">Rp
+                                        <?= number_format($p['harga_min'], 0, ',', '.'); ?>
                                     </td>
-                                    <td>
-                                        <?php echo $p['stok']; ?>
+                                    <td class="fw-bold text-center">
+                                        <?= $p['stok']; ?>
                                     </td>
                                     <td>
                                         <?php if ($p['stok'] <= 0): ?>
@@ -416,11 +483,13 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <a href="edit_produk.php?id=<?php echo $p['id']; ?>"
-                                            class="btn btn-primary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
-                                        <a href="produk.php?delete=<?php echo $p['id']; ?>" class="btn btn-danger btn-sm"
-                                            onclick="return confirm('Hapus produk ini?')"><i class="bi bi-trash"></i>
-                                            Hapus</a>
+                                        <div class="d-flex gap-2">
+                                            <a href="edit_produk.php?id=<?= $p['id']; ?>" class="btn-action btn-edit"><i
+                                                    class="bi bi-pencil-square"></i></a>
+                                            <a href="produk.php?delete=<?= $p['id']; ?>" class="btn-action btn-delete"
+                                                onclick="return confirm('Yakin ingin menghapus produk ini secara permanen?')"><i
+                                                    class="bi bi-trash3-fill"></i></a>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>
@@ -431,11 +500,13 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
         </div>
     </main>
 
-    <footer class="footer">
-        <div class="container">
-            <p style="opacity: 0.8;">© 2024 7CellX - Project UAS PBW</p>
+    <footer>
+        <div class="container small fw-medium opacity-75">
+            &copy;
+            <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.
         </div>
     </footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

@@ -1,5 +1,6 @@
 <?php
 session_start();
+/** @var mysqli $conn */
 require_once '../config/koneksi.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
@@ -7,7 +8,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     exit;
 }
 
-$customers = mysqli_query($conn, "SELECT DISTINCT u.id, u.nama, u.email, u.is_online, u.last_seen FROM users u JOIN chats c ON u.id = c.user_id WHERE u.role = 'customer' ORDER BY u.is_online DESC, (SELECT MAX(created_at) FROM chats WHERE user_id = u.id) DESC");
+$customers = mysqli_query($conn, "SELECT DISTINCT u.id, u.nama, u.email, u.is_online, u.last_seen FROM users u JOIN chats c ON u.id = c.user_id WHERE u.role = 'customer' ORDER BY (SELECT MAX(created_at) FROM chats WHERE user_id = u.id) DESC");
 $selected_id = (int) ($_GET['id'] ?? 0);
 ?>
 <!DOCTYPE html>
@@ -16,235 +17,372 @@ $selected_id = (int) ($_GET['id'] ?? 0);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Chat - 7CellX</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <title>Live Chat Admin - 7CellX</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <style>
         :root {
-            --gold-primary: #d4af37;
-            --gold-light: #f4e5c2;
-            --gold-dark: #aa8c2c;
-            --cream: #faf8f3;
-            --dark: #1a1a1a;
-            --gray: #6b7280;
+            --brand-pink: #E91E63;
+            --brand-purple: #9C27B0;
+            --brand-navy: #1A237E;
+            --bg-main: #F4F7FE;
+            --bg-card: #FFFFFF;
+            --text-dark: #0F172A;
+            --text-muted: #64748B;
+            --border-subtle: #E2E8F0;
+            --brand-gradient: linear-gradient(135deg, #E91E63 0%, #9C27B0 50%, #1A237E 100%);
+            --glow-shadow: 0 15px 35px rgba(156, 39, 176, 0.15);
+            --card-shadow: 0 8px 25px rgba(0, 0, 0, 0.03);
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Montserrat', sans-serif;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         body {
-            background: var(--cream);
+            background: var(--bg-main);
+            color: var(--text-dark);
             height: 100vh;
             display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* NAVBAR */
+        .navbar {
+            background: var(--brand-gradient) !important;
+            padding: 0.8rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.35);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .brand-pill {
+            background: #FFFFFF;
+            padding: 6px 20px 6px 8px;
+            border-radius: 30px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+
+        .brand-logo-img {
+            height: 30px;
+            width: 30px;
+            border-radius: 50%;
+            object-fit: contain;
+        }
+
+        .text-gradient {
+            background: var(--brand-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.85) !important;
+            font-weight: 600;
+            margin: 0 5px;
+            padding: 8px 16px !important;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: #FFFFFF !important;
+            transform: translateY(-1px);
+        }
+
+        .btn-white-nav {
+            background: #FFFFFF;
+            color: var(--brand-purple);
+            font-weight: 700;
+            padding: 8px 20px;
+            border-radius: 30px;
+            border: none;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
+        }
+
+        .dropdown-menu {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            padding: 10px;
+            margin-top: 15px !important;
+        }
+
+        /* CHAT LAYOUT EKSKLUSIF ADMIN */
+        .admin-chat-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            background: var(--bg-main);
         }
 
         .sidebar {
-            width: 320px;
-            background: white;
-            border-right: 1px solid #e5e7eb;
+            width: 350px;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-subtle);
             display: flex;
             flex-direction: column;
+            z-index: 10;
+            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.02);
         }
 
         .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            font-weight: 900;
+            padding: 25px 20px;
+            border-bottom: 1px dashed var(--border-subtle);
+            font-weight: 800;
             font-size: 1.2rem;
-            color: var(--dark);
+            color: var(--brand-navy);
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .sidebar-header i {
-            color: var(--gold-primary);
-        }
-
         .customer-list {
             flex: 1;
             overflow-y: auto;
+            padding: 10px;
         }
 
         .customer-item {
-            padding: 16px 20px;
-            border-bottom: 1px solid #f3f4f6;
+            padding: 15px;
+            border-radius: 16px;
+            margin-bottom: 8px;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 15px;
             text-decoration: none;
+            border: 1px solid transparent;
         }
 
-        .customer-item:hover,
+        .customer-item:hover {
+            background: #F8FAFC;
+            border-color: var(--border-subtle);
+        }
+
         .customer-item.active {
-            background: var(--gold-light);
+            background: rgba(156, 39, 176, 0.05);
+            border-color: rgba(156, 39, 176, 0.2);
+            box-shadow: 0 4px 10px rgba(156, 39, 176, 0.05);
         }
 
         .customer-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--cream);
+            width: 45px;
+            height: 45px;
+            border-radius: 16px;
+            background: #F1F5F9;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--gold-dark);
-            font-weight: 700;
+            color: var(--text-muted);
+            font-weight: 800;
+            font-size: 1.1rem;
             position: relative;
         }
 
-        .customer-avatar .online-dot {
+        .customer-item.active .customer-avatar {
+            background: var(--brand-gradient);
+            color: white;
+            box-shadow: var(--glow-shadow);
+        }
+
+        .online-dot {
             position: absolute;
-            bottom: 0;
-            right: 0;
-            width: 12px;
-            height: 12px;
-            background: #10b981;
-            border: 2px solid white;
+            top: -3px;
+            right: -3px;
+            width: 14px;
+            height: 14px;
+            background: #10B981;
+            border: 2.5px solid white;
             border-radius: 50%;
         }
 
         .customer-info h4 {
-            font-size: 0.95rem;
-            color: var(--dark);
-            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-dark);
+            font-weight: 700;
+            margin: 0 0 2px 0;
         }
 
         .customer-info p {
             font-size: 0.8rem;
-            color: var(--gray);
+            color: var(--text-muted);
+            margin: 0;
+            font-weight: 500;
         }
 
+        /* MAIN CHAT AREA */
         .chat-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: var(--cream);
+            background: #F4F7FE;
         }
 
         .chat-header {
-            background: white;
-            padding: 16px 24px;
-            border-bottom: 1px solid #e5e7eb;
+            background: #FFFFFF;
+            padding: 20px 30px;
+            border-bottom: 1px solid var(--border-subtle);
             display: flex;
             align-items: center;
             gap: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
         }
 
         .chat-header .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: var(--gold-light);
+            width: 50px;
+            height: 50px;
+            border-radius: 16px;
+            background: var(--brand-gradient);
+            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--gold-dark);
-            font-weight: 700;
+            font-size: 1.2rem;
+            font-weight: 800;
+            box-shadow: var(--glow-shadow);
         }
 
         .chat-header h3 {
-            font-size: 1.1rem;
-            color: var(--dark);
-            font-weight: 700;
+            font-size: 1.3rem;
+            color: var(--text-dark);
+            font-weight: 800;
+            margin: 0;
         }
 
         .chat-header .status {
             font-size: 0.85rem;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
+            font-weight: 600;
+            margin-top: 4px;
         }
 
         .chat-header .status.online {
-            color: #10b981;
+            color: #10B981;
         }
 
         .chat-header .status.offline {
-            color: #ef4444;
+            color: #64748B;
         }
 
         .chat-messages {
             flex: 1;
-            padding: 24px;
+            padding: 30px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 15px;
         }
 
         .message {
             max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 16px;
+            padding: 14px 18px;
             font-size: 0.95rem;
             line-height: 1.5;
-        }
-
-        .message.admin {
-            background: var(--gold-primary);
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
+            font-weight: 500;
+            position: relative;
         }
 
         .message.customer {
-            background: white;
-            color: var(--dark);
+            background: #FFFFFF;
+            color: var(--text-dark);
             align-self: flex-start;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            border-radius: 20px 20px 20px 4px;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+        }
+
+        .message.admin {
+            background: var(--brand-gradient);
+            color: white;
+            align-self: flex-end;
+            border-radius: 20px 20px 4px 20px;
+            box-shadow: 0 4px 15px rgba(156, 39, 176, 0.2);
         }
 
         .message .time {
             font-size: 0.7rem;
-            opacity: 0.7;
-            margin-top: 4px;
+            margin-top: 6px;
             display: block;
+            font-weight: 600;
+        }
+
+        .message.customer .time {
+            color: var(--text-muted);
+        }
+
+        .message.admin .time {
+            color: rgba(255, 255, 255, 0.8);
         }
 
         .chat-input {
-            background: white;
-            padding: 16px 24px;
-            border-top: 1px solid #e5e7eb;
+            background: #FFFFFF;
+            padding: 20px 30px;
+            border-top: 1px solid var(--border-subtle);
             display: flex;
-            gap: 12px;
+            gap: 15px;
+            align-items: center;
         }
 
         .chat-input input {
             flex: 1;
-            padding: 12px 16px;
-            border: 2px solid #e5e7eb;
-            border-radius: 10px;
+            padding: 15px 25px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 30px;
+            font-size: 1rem;
             outline: none;
+            background: #F8FAFC;
+            font-weight: 500;
+            transition: all 0.3s;
         }
 
         .chat-input input:focus {
-            border-color: var(--gold-primary);
+            background: #FFFFFF;
+            border-color: var(--brand-purple);
+            box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
         }
 
         .chat-input button {
-            padding: 0 20px;
-            background: var(--gold-dark);
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            background: var(--brand-gradient);
             color: white;
             border: none;
-            border-radius: 10px;
-            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
             cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: var(--glow-shadow);
         }
 
         .chat-input button:hover {
-            background: var(--gold-primary);
+            transform: scale(1.05);
         }
 
         .empty-state {
@@ -253,78 +391,125 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             align-items: center;
             justify-content: center;
             height: 100%;
-            color: var(--gray);
+            color: var(--text-muted);
+            background: #F8FAFC;
         }
 
         .empty-state i {
-            font-size: 4rem;
-            color: #ddd;
+            font-size: 5rem;
+            color: #CBD5E1;
             margin-bottom: 15px;
+        }
+
+        .empty-state h3 {
+            font-weight: 800;
+            color: var(--brand-navy);
+            margin-bottom: 5px;
         }
     </style>
 </head>
 
 <body>
-    <div class="sidebar">
-        <div class="sidebar-header">
-            <i class="bi bi-chat-dots"></i>
-            Pesan Customer
-        </div>
-        <div class="customer-list">
-            <?php while ($c = mysqli_fetch_assoc($customers)): ?>
-                <a href="?id=<?php echo $c['id']; ?>"
-                    class="customer-item <?php echo $selected_id == $c['id'] ? 'active' : ''; ?>">
-                    <div class="customer-avatar">
-                        <?php echo strtoupper(substr($c['nama'], 0, 1)); ?>
-                        <?php if ($c['is_online'] == 1): ?>
-                            <span class="online-dot"></span>
-                        <?php endif; ?>
-                    </div>
-                    <div class="customer-info">
-                        <h4>
-                            <?php echo htmlspecialchars($c['nama']); ?>
-                        </h4>
-                        <p>
-                            <?php echo htmlspecialchars($c['email']); ?>
-                        </p>
-                    </div>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid px-4 d-lg-flex">
+            <div class="nav-zone-left" style="flex: 1;">
+                <a class="brand-pill" href="index.php">
+                    <img src="../../assets/logo.png" alt="Logo" class="brand-logo-img"
+                        onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
                 </a>
-            <?php endwhile; ?>
+            </div>
+            <div class="collapse navbar-collapse nav-zone-center justify-content-center" id="navbarNav">
+                <ul class="navbar-nav align-items-center gap-2">
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="index.php"><i
+                                class="bi bi-speedometer2"></i> Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="produk.php"><i
+                                class="bi bi-box-seam"></i> Produk</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
+                                class="bi bi-receipt"></i> Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link active d-flex align-items-center gap-2" href="chat.php"><i
+                                class="bi bi-chat-dots"></i> Chat</a></li>
+                </ul>
+            </div>
+            <div class="collapse navbar-collapse nav-zone-right justify-content-end" id="navbarNavRight"
+                style="flex: 1;">
+                <div class="dropdown">
+                    <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-shield-check fs-5 text-gradient"></i>
+                        <span class="text-gradient">
+                            <?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
+                                    class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
         </div>
-    </div>
+    </nav>
 
-    <div class="chat-area">
-        <?php if ($selected_id > 0):
-            $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT nama, is_online, last_seen FROM users WHERE id = $selected_id"));
-            ?>
-            <div class="chat-header">
-                <div class="avatar">
-                    <?php echo strtoupper(substr($cust['nama'], 0, 1)); ?>
-                </div>
-                <div>
-                    <h3>
-                        <?php echo htmlspecialchars($cust['nama']); ?>
-                    </h3>
-                    <span class="status <?php echo $cust['is_online'] == 1 ? 'online' : 'offline'; ?>" id="customerStatus">
-                        <i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i>
-                        <?php echo $cust['is_online'] == 1 ? 'Online' : 'Offline'; ?>
-                    </span>
-                </div>
+    <div class="admin-chat-layout">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <i class="bi bi-chat-text-fill fs-4 text-gradient"></i> Inbox Customers
             </div>
-
-            <div class="chat-messages" id="chatMessages"></div>
-
-            <form class="chat-input" id="chatForm">
-                <input type="text" id="msgInput" placeholder="Balas pesan..." autocomplete="off" required>
-                <button type="submit">Kirim</button>
-            </form>
-        <?php else: ?>
-            <div class="empty-state">
-                <i class="bi bi-inbox"></i>
-                <h3>Pilih Customer</h3>
-                <p>Klik nama customer di sidebar untuk memulai chat</p>
+            <div class="customer-list">
+                <?php while ($c = mysqli_fetch_assoc($customers)): ?>
+                    <a href="?id=<?= $c['id']; ?>" class="customer-item <?= $selected_id == $c['id'] ? 'active' : ''; ?>">
+                        <div class="customer-avatar">
+                            <?= strtoupper(substr($c['nama'], 0, 1)); ?>
+                            <?php if ($c['is_online'] == 1): ?>
+                                <span class="online-dot"></span>
+                            <?php endif; ?>
+                        </div>
+                        <div class="customer-info">
+                            <h4>
+                                <?= htmlspecialchars($c['nama']); ?>
+                            </h4>
+                            <p>
+                                <?= htmlspecialchars($c['email']); ?>
+                            </p>
+                        </div>
+                    </a>
+                <?php endwhile; ?>
             </div>
-        <?php endif; ?>
+        </div>
+
+        <div class="chat-area">
+            <?php if ($selected_id > 0):
+                $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT nama, is_online, last_seen FROM users WHERE id = $selected_id"));
+                ?>
+                <div class="chat-header">
+                    <div class="avatar">
+                        <?= strtoupper(substr($cust['nama'], 0, 1)); ?>
+                    </div>
+                    <div>
+                        <h3>
+                            <?= htmlspecialchars($cust['nama']); ?>
+                        </h3>
+                        <span class="status <?= $cust['is_online'] == 1 ? 'online' : 'offline'; ?>" id="customerStatus">
+                            <i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i>
+                            <?= $cust['is_online'] == 1 ? 'Online' : 'Offline'; ?>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="chat-messages" id="chatMessages"></div>
+
+                <form class="chat-input" id="chatForm">
+                    <input type="text" id="msgInput" placeholder="Ketik balasan untuk pelanggan..." autocomplete="off"
+                        required>
+                    <button type="submit" title="Kirim Balasan"><i class="bi bi-send-fill"></i></button>
+                </form>
+            <?php else: ?>
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <h3>Pilih Percakapan</h3>
+                    <p>Klik nama customer di panel kiri untuk membalas pesan masuk.</p>
+                </div>
+            <?php endif; ?>
+        </div>
     </div>
 
     <?php if ($selected_id > 0): ?>
@@ -333,19 +518,13 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             const chatForm = document.getElementById('chatForm');
             const msgInput = document.getElementById('msgInput');
             const customerStatus = document.getElementById('customerStatus');
-            const targetId = <?php echo $selected_id; ?>;
+            const targetId = <?= $selected_id; ?>;
             let lastCount = 0;
             let isActive = 1;
 
             function formatTime(dateStr) {
                 const date = new Date(dateStr);
-                const options = {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                };
+                const options = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
                 return date.toLocaleDateString('id-ID', options);
             }
 
@@ -400,17 +579,11 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             });
 
             document.addEventListener('visibilitychange', () => {
-                if (document.hidden) {
-                    isActive = 0;
-                } else {
-                    isActive = 1;
-                }
+                isActive = document.hidden ? 0 : 1;
                 updatePresence();
             });
 
-            loadChat();
-            checkCustomerStatus();
-            updatePresence();
+            loadChat(); checkCustomerStatus(); updatePresence();
             setInterval(loadChat, 3000);
             setInterval(checkCustomerStatus, 5000);
             setInterval(updatePresence, 10000);
