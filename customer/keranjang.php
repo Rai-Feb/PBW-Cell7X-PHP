@@ -2,7 +2,6 @@
 session_start();
 require_once '../config/koneksi.php';
 
-// Proteksi Keamanan: Hanya Customer/User yang boleh mengakses
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');
     exit;
@@ -10,84 +9,30 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = (int) $_SESSION['user_id'];
 
-// Mengelola semua POST Request dengan sangat ketat agar tidak terjadi Redirect Loop
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    // A. Update Profil dari Modal
-    if (isset($_POST['action']) && $_POST['action'] === 'update_profile') {
-        $nama = trim($_POST['nama']);
-        $username = trim($_POST['username']);
-
-        $stmt_get = mysqli_prepare($conn, "SELECT profile_picture FROM users WHERE id = ?");
-        mysqli_stmt_bind_param($stmt_get, "i", $user_id);
-        mysqli_stmt_execute($stmt_get);
-        $res = mysqli_stmt_get_result($stmt_get);
-        $current_user = mysqli_fetch_assoc($res);
-        $profile_picture = $current_user['profile_picture'] ?? '';
-
-        if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
-            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-            $ext = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
-            if (in_array($ext, $allowed)) {
-                $new_filename = 'pp_' . time() . '_' . uniqid() . '.' . $ext;
-                $upload_path = '../uploads/profiles/';
-                if (!is_dir($upload_path))
-                    mkdir($upload_path, 0777, true);
-                if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $upload_path . $new_filename)) {
-                    if (!empty($profile_picture) && file_exists($upload_path . $profile_picture)) {
-                        unlink($upload_path . $profile_picture);
-                    }
-                    $profile_picture = $new_filename;
+    if (isset($_POST['update'])) {
+        if (isset($_POST['qty']) && is_array($_POST['qty'])) {
+            foreach ($_POST['qty'] as $key => $qty) {
+                $qty = (int) $qty;
+                if ($qty > 0) {
+                    $_SESSION['keranjang'][$key] = $qty;
+                } else {
+                    unset($_SESSION['keranjang'][$key]);
                 }
             }
         }
-        $stmt_update = mysqli_prepare($conn, "UPDATE users SET nama = ?, username = ?, profile_picture = ? WHERE id = ?");
-        mysqli_stmt_bind_param($stmt_update, "sssi", $nama, $username, $profile_picture, $user_id);
-        if (mysqli_stmt_execute($stmt_update)) {
-            $_SESSION['nama'] = $nama;
-            $_SESSION['username'] = $username;
-            $_SESSION['profile_picture'] = $profile_picture;
-            $_SESSION['success_msg'] = "Profil berhasil diperbarui!";
-        }
-        header("Location: keranjang.php");
-        exit;
-    }
-
-    // B. Tambah Barang Langsung
-    if (isset($_POST['action']) && $_POST['action'] === 'add_to_cart') {
-        $product_id = (int) $_POST['product_id'];
-        $qty = isset($_POST['qty']) ? (int) $_POST['qty'] : 1;
-        if (!isset($_SESSION['keranjang']))
-            $_SESSION['keranjang'] = [];
-        $_SESSION['keranjang'][$product_id] = ($_SESSION['keranjang'][$product_id] ?? 0) + $qty;
         header('Location: keranjang.php');
         exit;
     }
 
-    // C. Perbarui Kuantitas
-    if (isset($_POST['update'])) {
-        if (isset($_POST['qty']) && is_array($_POST['qty'])) {
-            foreach ($_POST['qty'] as $id => $qty) {
-                $qty = (int) $qty;
-                if ($qty > 0)
-                    $_SESSION['keranjang'][$id] = $qty;
-                else
-                    unset($_SESSION['keranjang'][$id]);
-            }
-        }
-        header('Location: keranjang.php');
-        exit;
-    }
-
-    // D. Hapus Item Spesifik
     if (isset($_POST['hapus'])) {
-        $id = (int) $_POST['id'];
-        unset($_SESSION['keranjang'][$id]);
+        $key = $_POST['hapus_key'];
+        unset($_SESSION['keranjang'][$key]);
         header('Location: keranjang.php');
         exit;
     }
 
-    // E. Lempar ke Checkout
     if (isset($_POST['checkout'])) {
         if (!empty($_POST['selected_items'])) {
             $_SESSION['checkout_items'] = $_POST['selected_items'];
@@ -101,27 +46,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Menyiapkan Data untuk Ditampilkan
 $keranjang = $_SESSION['keranjang'] ?? [];
 $items = [];
 $total = 0;
 
 if (!empty($keranjang)) {
-    $ids = implode(',', array_map('intval', array_keys($keranjang)));
-    $query = "SELECT * FROM products WHERE id IN ($ids)";
-    $result = mysqli_query($conn, $query);
-    while ($produk = mysqli_fetch_assoc($result)) {
-        $qty = $keranjang[$produk['id']];
-        $harga = $produk['harga_min'] ?? $produk['harga'] ?? 0;
-        $subtotal = $harga * $qty;
-        $total += $subtotal;
-        $produk['qty'] = $qty;
-        $produk['subtotal'] = $subtotal;
-        $items[] = $produk;
+    // [AUTO-HEAL] Perbaiki data keranjang yang rusak (tidak memiliki Index Varian)
+    $healed_cart = [];
+    $needs_healing = false;
+    foreach ($keranjang as $key => $qty) {
+        $parts = explode('_', $key);
+        if (count($parts) < 2) {
+            $healed_cart[$parts[0] . '_0'] = $qty;
+            $needs_healing = true;
+        } else {
+            $healed_cart[$key] = $qty;
+        }
+    }
+    if ($needs_healing) {
+        $_SESSION['keranjang'] = $healed_cart;
+        $keranjang = $healed_cart;
+    }
+
+    $unique_pids = array_unique(array_map(function ($k) {
+        return explode('_', $k)[0]; }, array_keys($keranjang)));
+    $products_data = [];
+
+    if (!empty($unique_pids)) {
+        $ids = implode(',', $unique_pids);
+        $res = mysqli_query($conn, "SELECT * FROM products WHERE id IN ($ids)");
+        while ($row = mysqli_fetch_assoc($res)) {
+            $products_data[$row['id']] = $row;
+        }
+    }
+
+    foreach ($keranjang as $key => $qty) {
+        list($pid, $v_idx) = explode('_', $key);
+        if (isset($products_data[$pid])) {
+            $p = $products_data[$pid];
+            $var_arr = json_decode($p['varian'], true);
+            if (isset($var_arr[$v_idx])) {
+                $v_data = $var_arr[$v_idx];
+
+                $p['cart_key'] = $key;
+                $p['qty'] = $qty;
+                $p['harga_satuan'] = $v_data['harga'];
+                $p['stok_varian'] = $v_data['stok'];
+                $p['label_varian'] = $v_data['ram'] . '/' . $v_data['rom'] . ' GB';
+                $p['subtotal'] = $v_data['harga'] * $qty;
+
+                $total += $p['subtotal'];
+                $items[] = $p;
+            }
+        }
     }
 }
 
-// Data User untuk Navbar
 $stmt_user = mysqli_prepare($conn, "SELECT nama, username, profile_picture FROM users WHERE id = ?");
 mysqli_stmt_bind_param($stmt_user, "i", $user_id);
 mysqli_stmt_execute($stmt_user);
@@ -454,6 +434,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             display: flex;
             align-items: center;
             gap: 6px;
+            cursor: pointer;
         }
 
         .btn-remove:hover {
@@ -589,124 +570,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             display: block;
         }
 
-        .custom-modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(8px);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .custom-modal-box {
-            background: var(--bg-card);
-            width: 90%;
-            max-width: 500px;
-            border-radius: 24px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            transform: translateY(20px);
-            animation: modalFadeIn 0.3s forwards;
-            text-align: left;
-        }
-
-        @keyframes modalFadeIn {
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .custom-modal-title {
-            font-weight: 800;
-            color: var(--brand-navy);
-            font-size: 1.25rem;
-            margin-bottom: 10px;
-        }
-
-        .custom-modal-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-        }
-
-        .btn-modal-cancel {
-            flex: 1;
-            padding: 12px;
-            border-radius: 14px;
-            background: white;
-            border: 2px solid var(--border-subtle);
-            color: var(--text-muted);
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .btn-modal-cancel:hover {
-            border-color: var(--text-dark);
-            color: var(--text-dark);
-        }
-
-        .btn-modal-confirm {
-            flex: 1;
-            padding: 12px;
-            border-radius: 14px;
-            background: var(--brand-gradient);
-            border: none;
-            color: white;
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.3s;
-            box-shadow: var(--glow-shadow);
-        }
-
-        .btn-modal-confirm:hover {
-            transform: translateY(-2px);
-        }
-
-        .settings-form-label {
-            font-weight: 700;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-            display: block;
-            text-transform: uppercase;
-        }
-
-        .settings-input {
-            width: 100%;
-            padding: 12px 18px;
-            border: 1px solid var(--border-subtle);
-            border-radius: 14px;
-            background: #F8FAFC;
-            font-weight: 500;
-            transition: all 0.3s;
-            outline: none;
-            margin-bottom: 20px;
-        }
-
-        .settings-input:focus {
-            border-color: var(--brand-purple);
-            box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
-            background: white;
-        }
-
-        .settings-avatar-preview {
-            width: 90px;
-            height: 90px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid var(--brand-pink);
-            margin-bottom: 15px;
-            box-shadow: var(--glow-shadow);
-        }
-
         footer {
             margin-top: auto;
             background: var(--brand-gradient);
@@ -785,16 +648,10 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                             <?php endif; ?>
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center gap-2" href="pesanan.php">
-                            <i class="bi bi-receipt fs-5"></i> Pesanan
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center gap-2" href="chat.php">
-                            <i class="bi bi-chat-dots fs-5"></i> Chat
-                        </a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
+                                class="bi bi-receipt fs-5"></i> Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
+                                class="bi bi-chat-dots fs-5"></i> Chat Seller</a></li>
                 </ul>
             </div>
 
@@ -813,12 +670,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                             </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li>
-                                <button class="dropdown-item d-flex align-items-center" type="button"
-                                    onclick="openSettingsModal()">
-                                    <i class="bi bi-gear me-2 text-muted"></i>Settings
-                                </button>
-                            </li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
@@ -865,7 +716,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                 </a>
             </div>
         <?php else: ?>
-            <form method="POST">
+            <form method="POST" id="formKeranjang">
                 <div class="cart-wrapper">
                     <div class="cart-items">
                         <div class="d-flex align-items-center mb-3 pb-3 border-bottom border-subtle">
@@ -882,8 +733,8 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                             <div class="cart-item">
                                 <div class="form-check d-flex align-items-center justify-content-center">
                                     <input class="form-check-input item-check shadow-none m-0" type="checkbox"
-                                        name="selected_items[]" value="<?= $item['id'] ?>" data-price="<?= $item['subtotal'] ?>"
-                                        checked
+                                        name="selected_items[]" value="<?= $item['cart_key'] ?>"
+                                        data-price="<?= $item['subtotal'] ?>" checked
                                         style="transform: scale(1.3); cursor: pointer; border-color: var(--brand-purple);">
                                 </div>
                                 <div class="image-frame">
@@ -895,29 +746,28 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                                         <?= htmlspecialchars($item['nama_barang']) ?>
                                     </h3>
                                     <div class="d-flex flex-wrap gap-2 mb-2">
-                                        <?php
-                                        $varian = json_decode($item['varian'] ?? '[]', true);
-                                        if ($varian && is_array($varian) && count($varian) > 0 && isset($varian[0]['ram']) && isset($varian[0]['rom'])):
-                                            ?>
-                                            <span class="variant-pill">
-                                                <?= htmlspecialchars($varian[0]['ram']) ?>/
-                                                <?= htmlspecialchars($varian[0]['rom']) ?> GB
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="variant-pill">Custom Spec</span>
-                                        <?php endif; ?>
+                                        <span class="variant-pill">
+                                            <?= htmlspecialchars($item['label_varian']) ?>
+                                        </span>
                                     </div>
                                     <div class="item-price">Rp
-                                        <?= number_format($item['harga_min'] ?? $item['harga'], 0, ',', '.') ?>
+                                        <?= number_format($item['harga_satuan'], 0, ',', '.') ?>
                                     </div>
                                     <div class="qty-control">
-                                        <button type="button" class="qty-btn" onclick="updateQty(<?= $item['id'] ?>, -1)"><i
+                                        <button type="button" class="qty-btn"
+                                            onclick="updateQty('<?= $item['cart_key'] ?>', -1)"><i
                                                 class="bi bi-dash"></i></button>
-                                        <input type="number" name="qty[<?= $item['id'] ?>]" value="<?= $item['qty'] ?>" min="1"
-                                            max="<?= $item['stok'] ?>" data-max="<?= $item['stok'] ?>" class="qty-input"
-                                            readonly>
-                                        <button type="button" class="qty-btn" onclick="updateQty(<?= $item['id'] ?>, 1)"><i
+                                        <input type="number" name="qty[<?= $item['cart_key'] ?>]" value="<?= $item['qty'] ?>"
+                                            min="1" max="<?= $item['stok_varian'] ?>" data-max="<?= $item['stok_varian'] ?>"
+                                            class="qty-input" readonly>
+                                        <button type="button" class="qty-btn"
+                                            onclick="updateQty('<?= $item['cart_key'] ?>', 1)"><i
                                                 class="bi bi-plus"></i></button>
+                                    </div>
+                                    <div
+                                        class="mt-2 small <?= $item['stok_varian'] <= 5 ? 'text-danger fw-bold' : 'text-muted' ?>">
+                                        Sisa stok:
+                                        <?= $item['stok_varian'] ?>
                                     </div>
                                 </div>
                                 <div class="item-subtotal">
@@ -926,9 +776,8 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                                         <p>Rp
                                             <?= number_format($item['subtotal'], 0, ',', '.') ?>
                                         </p>
-                                        <input type="hidden" name="id" value="<?= $item['id'] ?>" disabled
-                                            id="del_id_<?= $item['id'] ?>">
-                                        <button type="button" class="btn-remove" onclick="hapusItem(<?= $item['id'] ?>)">
+                                        <button type="button" class="btn-remove"
+                                            onclick="hapusItem('<?= $item['cart_key'] ?>')">
                                             <i class="bi bi-trash3-fill"></i> Hapus
                                         </button>
                                     </div>
@@ -967,6 +816,11 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                     </div>
                 </div>
             </form>
+
+            <form method="POST" id="formHapus" style="display: none;">
+                <input type="hidden" name="hapus" value="1">
+                <input type="hidden" name="hapus_key" id="inputHapusKey">
+            </form>
         <?php endif; ?>
     </div>
 
@@ -977,42 +831,11 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         </div>
     </footer>
 
-    <div class="custom-modal-overlay" id="settingsModal">
-        <div class="custom-modal-box custom-settings-box">
-            <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-subtle pb-3">
-                <h3 class="custom-modal-title m-0"><i class="bi bi-gear-fill me-2"></i> Pengaturan Profil</h3>
-                <button type="button" class="btn-close shadow-none" onclick="closeSettingsModal()"></button>
-            </div>
-            <form method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="action" value="update_profile">
-                <div class="text-center mb-4">
-                    <img id="previewPP"
-                        src="<?= !empty($active_user['profile_picture']) ? '../uploads/profiles/' . htmlspecialchars($active_user['profile_picture']) : 'https://via.placeholder.com/90/F8FAFC/9C27B0?text=PP' ?>"
-                        class="settings-avatar-preview">
-                    <label class="form-label d-block text-center" style="font-size: 0.8rem;">GANTI FOTO PROFIL</label>
-                    <input type="file" name="profile_picture" id="inputPP" class="form-control form-control-sm mx-auto"
-                        accept="image/*" style="max-width: 250px; font-size: 0.8rem;" onchange="previewImage(event)">
-                </div>
-                <label class="settings-form-label">NAMA LENGKAP</label>
-                <input type="text" name="nama" class="settings-input"
-                    value="<?= htmlspecialchars($active_user['nama']) ?>" required>
-                <label class="settings-form-label">USERNAME</label>
-                <input type="text" name="username" class="settings-input"
-                    value="<?= htmlspecialchars($active_user['username']) ?>" required>
-                <div class="custom-modal-actions">
-                    <button type="button" class="btn-modal-cancel" onclick="closeSettingsModal()">Batal</button>
-                    <button type="submit" class="btn-modal-confirm"><i class="bi bi-save-fill me-2"></i> Simpan
-                        Profil</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function updateQty(id, change) {
+        function updateQty(key, change) {
             saveCheckedState();
-            const input = document.querySelector('input[name="qty[' + id + ']"]');
+            const input = document.querySelector('input[name="qty[' + key + ']"]');
             const maxStock = parseInt(input.getAttribute('data-max'));
             let newValue = parseInt(input.value) + change;
 
@@ -1020,33 +843,19 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             if (newValue > maxStock) newValue = maxStock;
             input.value = newValue;
 
-            const form = input.form;
+            const form = document.getElementById('formKeranjang');
             const hiddenUpdate = document.createElement('input');
             hiddenUpdate.type = 'hidden';
             hiddenUpdate.name = 'update';
             hiddenUpdate.value = '1';
             form.appendChild(hiddenUpdate);
-
             form.submit();
         }
 
-        function hapusItem(id) {
+        function hapusItem(key) {
             if (confirm('Hapus item ini dari keranjang?')) {
-                const delInput = document.getElementById('del_id_' + id);
-                delInput.disabled = false;
-
-                const form = document.createElement('form');
-                form.method = 'POST';
-
-                const inputHapus = document.createElement('input');
-                inputHapus.type = 'hidden';
-                inputHapus.name = 'hapus';
-                inputHapus.value = '1';
-
-                form.appendChild(delInput.cloneNode(true));
-                form.appendChild(inputHapus);
-                document.body.appendChild(form);
-                form.submit();
+                document.getElementById('inputHapusKey').value = key;
+                document.getElementById('formHapus').submit();
             }
         }
 
@@ -1106,14 +915,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             }
             calculateSummary();
         });
-
-        function openSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
-        function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; }
-        function previewImage(event) {
-            var reader = new FileReader();
-            reader.onload = function () { document.getElementById('previewPP').src = reader.result; }
-            if (event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
-        }
     </script>
 </body>
 

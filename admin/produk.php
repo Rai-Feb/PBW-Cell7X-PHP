@@ -2,8 +2,6 @@
 session_start();
 require_once '../config/koneksi.php';
 
-/** @var mysqli $conn */
-
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
     exit;
@@ -354,7 +352,7 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
                 <a class="brand-pill" href="index.php">
                     <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
-                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
                 </a>
                 <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
                     data-bs-target="#navbarNav">
@@ -372,7 +370,7 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
                                 class="bi bi-chat-dots"></i> Chat</a></li>
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2"
-                            href="../admin/lihat_toko.php" target="_blank"><i class="bi bi-shop"></i> Lihat Toko</a>
+                            href="../customer/katalog.php" target="_blank"><i class="bi bi-shop"></i> Lihat Toko</a>
                     </li>
                 </ul>
             </div>
@@ -386,8 +384,8 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
                         </span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
-                                    class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        <li><a class="dropdown-item text-danger fw-bold d-flex align-items-center"
+                                href="../auth/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                     </ul>
                 </div>
             </div>

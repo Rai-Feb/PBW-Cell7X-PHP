@@ -2,6 +2,8 @@
 session_start();
 require_once '../config/koneksi.php';
 
+/** @var mysqli $conn */
+
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');
     exit;
@@ -16,9 +18,9 @@ $checkout_items = $_SESSION['checkout_items'] ?? [];
 
 // Memastikan hanya memproses barang yang di-check di keranjang
 if (isset($_SESSION['keranjang'])) {
-    foreach ($_SESSION['keranjang'] as $id => $qty) {
-        if (in_array($id, $checkout_items)) {
-            $cart[$id] = $qty;
+    foreach ($_SESSION['keranjang'] as $key => $qty) {
+        if (in_array($key, $checkout_items)) {
+            $cart[$key] = $qty;
         }
     }
 }
@@ -28,65 +30,58 @@ if (empty($cart)) {
     exit;
 }
 
-// Update Profil (Tersedia juga di modal checkout)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
-    $nama = trim($_POST['nama']);
-    $username = trim($_POST['username']);
+// Menghitung Total Harga & Pengecekan Stok Ulang untuk Varian
+$total = 0;
+$items_data = [];
 
-    $stmt_get = mysqli_prepare($conn, "SELECT profile_picture FROM users WHERE id = ?");
-    mysqli_stmt_bind_param($stmt_get, "i", $user_id);
-    mysqli_stmt_execute($stmt_get);
-    $res = mysqli_stmt_get_result($stmt_get);
-    $current_user = mysqli_fetch_assoc($res);
-    $profile_picture = $current_user['profile_picture'] ?? '';
+// Kumpulkan ID unik untuk query
+$unique_pids = array_unique(array_map(function ($k) {
+    return explode('_', $k)[0]; }, array_keys($cart)));
+$products_data = [];
 
-    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
-        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-        $ext = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
-        if (in_array($ext, $allowed)) {
-            $new_filename = 'pp_' . time() . '_' . uniqid() . '.' . $ext;
-            $upload_path = '../uploads/profiles/';
-            if (!is_dir($upload_path))
-                mkdir($upload_path, 0777, true);
-            if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $upload_path . $new_filename)) {
-                if (!empty($profile_picture) && file_exists($upload_path . $profile_picture)) {
-                    unlink($upload_path . $profile_picture);
-                }
-                $profile_picture = $new_filename;
-            }
-        }
+if (!empty($unique_pids)) {
+    $ids = implode(',', $unique_pids);
+    $res = mysqli_query($conn, "SELECT id, harga_min, stok, varian FROM products WHERE id IN ($ids)");
+    while ($row = mysqli_fetch_assoc($res)) {
+        $products_data[$row['id']] = $row;
     }
-
-    $stmt_update = mysqli_prepare($conn, "UPDATE users SET nama = ?, username = ?, profile_picture = ? WHERE id = ?");
-    mysqli_stmt_bind_param($stmt_update, "sssi", $nama, $username, $profile_picture, $user_id);
-    if (mysqli_stmt_execute($stmt_update)) {
-        $_SESSION['nama'] = $nama;
-        $_SESSION['username'] = $username;
-        $_SESSION['profile_picture'] = $profile_picture;
-    }
-    header("Location: checkout.php");
-    exit;
 }
 
-// Menghitung Total Harga & Pengecekan Stok Ulang
-$total = 0;
-foreach ($cart as $id => $qty) {
-    $stmt = mysqli_prepare($conn, "SELECT harga_min, stok FROM products WHERE id = ?");
-    mysqli_stmt_bind_param($stmt, "i", $id);
-    mysqli_stmt_execute($stmt);
-    $res = mysqli_stmt_get_result($stmt);
-    $product = mysqli_fetch_assoc($res);
+foreach ($cart as $key => $qty) {
+    list($pid, $v_idx) = explode('_', $key);
 
-    if ($product && $product['stok'] >= $qty) {
-        $total += $product['harga_min'] * $qty;
+    if (isset($products_data[$pid])) {
+        $p = $products_data[$pid];
+        $var_arr = json_decode($p['varian'], true);
+
+        if (isset($var_arr[$v_idx])) {
+            $v_data = $var_arr[$v_idx];
+
+            if ($v_data['stok'] >= $qty) {
+                $total += $v_data['harga'] * $qty;
+                $items_data[$key] = [
+                    'id' => $pid,
+                    'v_idx' => $v_idx,
+                    'qty' => $qty,
+                    'harga_satuan' => $v_data['harga'],
+                    'label_varian' => $v_data['ram'] . '/' . $v_data['rom'] . ' GB'
+                ];
+            } else {
+                $error = "Stok untuk varian " . $v_data['ram'] . "/" . $v_data['rom'] . " GB tidak mencukupi.";
+                break;
+            }
+        } else {
+            $error = "Varian tidak ditemukan.";
+            break;
+        }
     } else {
-        $error = "Stok produk tidak mencukupi untuk salah satu item yang dipilih.";
+        $error = "Produk tidak ditemukan.";
         break;
     }
 }
 
 // Pemrosesan Checkout (Ke Database)
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error) && !isset($_POST['action'])) {
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
     $metode_pembayaran = $_POST['payment_method'];
     $alamat_pengiriman = trim($_POST['alamat']);
 
@@ -101,37 +96,42 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error) && !isset($_POST['acti
             mysqli_stmt_execute($stmt);
             $order_id = mysqli_insert_id($conn);
 
-            foreach ($cart as $id => $qty) {
-                $stmt2 = mysqli_prepare($conn, "SELECT harga_min, stok, varian FROM products WHERE id = ? FOR UPDATE");
-                mysqli_stmt_bind_param($stmt2, "i", $id);
+            foreach ($items_data as $key => $item) {
+                $pid = $item['id'];
+                $v_idx = $item['v_idx'];
+                $qty = $item['qty'];
+
+                $stmt2 = mysqli_prepare($conn, "SELECT stok, varian FROM products WHERE id = ? FOR UPDATE");
+                mysqli_stmt_bind_param($stmt2, "i", $pid);
                 mysqli_stmt_execute($stmt2);
                 $res2 = mysqli_stmt_get_result($stmt2);
-                $product = mysqli_fetch_assoc($res2);
+                $product_db = mysqli_fetch_assoc($res2);
 
-                if ($product['stok'] < $qty) {
-                    throw new Exception("Stok produk id $id tidak cukup");
+                $varian_json = json_decode($product_db['varian'], true);
+
+                if ($varian_json[$v_idx]['stok'] < $qty) {
+                    throw new Exception("Stok produk id $pid tidak cukup saat diproses");
                 }
 
-                $varian_json = json_decode($product['varian'] ?? '[]', true);
-                $varian_label = "Standard";
-                if ($varian_json && is_array($varian_json) && count($varian_json) > 0 && isset($varian_json[0]['ram'])) {
-                    $varian_label = $varian_json[0]['ram'] . '/' . $varian_json[0]['rom'] . ' GB';
-                }
+                // Kurangi stok di dalam JSON varian
+                $varian_json[$v_idx]['stok'] -= $qty;
+                $new_varian_json = json_encode($varian_json);
 
                 $stmt3 = mysqli_prepare($conn, "INSERT INTO order_details (order_id, product_id, jumlah, harga_satuan, varian) VALUES (?, ?, ?, ?, ?)");
-                mysqli_stmt_bind_param($stmt3, "iiids", $order_id, $id, $qty, $product['harga_min'], $varian_label);
+                mysqli_stmt_bind_param($stmt3, "iiids", $order_id, $pid, $qty, $item['harga_satuan'], $item['label_varian']);
                 mysqli_stmt_execute($stmt3);
 
-                $stmt4 = mysqli_prepare($conn, "UPDATE products SET stok = stok - ? WHERE id = ?");
-                mysqli_stmt_bind_param($stmt4, "ii", $qty, $id);
+                // Update tabel products: kurangi stok total & update JSON variannya
+                $stmt4 = mysqli_prepare($conn, "UPDATE products SET stok = stok - ?, varian = ? WHERE id = ?");
+                mysqli_stmt_bind_param($stmt4, "isi", $qty, $new_varian_json, $pid);
                 mysqli_stmt_execute($stmt4);
             }
 
             mysqli_commit($conn);
 
             // Hapus HANYA item yang di-checkout dari session keranjang utama
-            foreach ($cart as $id => $qty) {
-                unset($_SESSION['keranjang'][$id]);
+            foreach ($cart as $key => $qty) {
+                unset($_SESSION['keranjang'][$key]);
             }
             unset($_SESSION['checkout_items']);
 
@@ -402,124 +402,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             color: white;
         }
 
-        .custom-modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(8px);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .custom-modal-box {
-            background: var(--bg-card);
-            width: 90%;
-            max-width: 500px;
-            border-radius: 24px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            transform: translateY(20px);
-            animation: modalFadeIn 0.3s forwards;
-            text-align: left;
-        }
-
-        @keyframes modalFadeIn {
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .custom-modal-title {
-            font-weight: 800;
-            color: var(--brand-navy);
-            font-size: 1.25rem;
-            margin-bottom: 10px;
-        }
-
-        .custom-modal-actions {
-            display: flex;
-            gap: 12px;
-            margin-top: 20px;
-        }
-
-        .btn-modal-cancel {
-            flex: 1;
-            padding: 12px;
-            border-radius: 14px;
-            background: white;
-            border: 2px solid var(--border-subtle);
-            color: var(--text-muted);
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.3s;
-        }
-
-        .btn-modal-cancel:hover {
-            border-color: var(--text-dark);
-            color: var(--text-dark);
-        }
-
-        .btn-modal-confirm {
-            flex: 1;
-            padding: 12px;
-            border-radius: 14px;
-            background: var(--brand-gradient);
-            border: none;
-            color: white;
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.3s;
-            box-shadow: var(--glow-shadow);
-        }
-
-        .btn-modal-confirm:hover {
-            transform: translateY(-2px);
-        }
-
-        .settings-form-label {
-            font-weight: 700;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-            display: block;
-            text-transform: uppercase;
-        }
-
-        .settings-input {
-            width: 100%;
-            padding: 12px 18px;
-            border: 1px solid var(--border-subtle);
-            border-radius: 14px;
-            background: #F8FAFC;
-            font-weight: 500;
-            transition: all 0.3s;
-            outline: none;
-            margin-bottom: 20px;
-        }
-
-        .settings-input:focus {
-            border-color: var(--brand-purple);
-            box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
-            background: white;
-        }
-
-        .settings-avatar-preview {
-            width: 90px;
-            height: 90px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid var(--brand-pink);
-            margin-bottom: 15px;
-            box-shadow: var(--glow-shadow);
-        }
-
         footer {
             margin-top: auto;
             background: var(--brand-gradient);
@@ -553,14 +435,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                     <li class="nav-item">
                         <a class="nav-link d-flex align-items-center gap-2 position-relative" href="keranjang.php">
                             <i class="bi bi-cart3 fs-5"></i> Keranjang
-                            <?php $cart_count = isset($_SESSION['keranjang']) ? count($_SESSION['keranjang']) : 0;
-                            if ($cart_count > 0): ?>
-                                <span
-                                    class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-2 border-white"
-                                    style="font-size: 0.6rem;">
-                                    <?= $cart_count ?>
-                                </span>
-                            <?php endif; ?>
                         </a>
                     </li>
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
@@ -585,12 +459,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                             </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li>
-                                <button class="dropdown-item d-flex align-items-center" type="button"
-                                    onclick="openSettingsModal()">
-                                    <i class="bi bi-gear me-2 text-muted"></i>Settings
-                                </button>
-                            </li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
@@ -708,39 +576,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         </div>
     </footer>
 
-    <?php if ($active_user): ?>
-        <div class="custom-modal-overlay" id="settingsModal">
-            <div class="custom-modal-box custom-settings-box">
-                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-subtle pb-3">
-                    <h3 class="custom-modal-title m-0"><i class="bi bi-gear-fill me-2"></i> Pengaturan Profil</h3>
-                    <button type="button" class="btn-close shadow-none" onclick="closeSettingsModal()"></button>
-                </div>
-                <form method="POST" enctype="multipart/form-data">
-                    <input type="hidden" name="action" value="update_profile">
-                    <div class="text-center mb-4">
-                        <img id="previewPP"
-                            src="<?= !empty($active_user['profile_picture']) ? '../uploads/profiles/' . htmlspecialchars($active_user['profile_picture']) : 'https://via.placeholder.com/90/F8FAFC/9C27B0?text=PP' ?>"
-                            class="settings-avatar-preview">
-                        <label class="form-label d-block text-center" style="font-size: 0.8rem;">GANTI FOTO PROFIL</label>
-                        <input type="file" name="profile_picture" id="inputPP" class="form-control form-control-sm mx-auto"
-                            accept="image/*" style="max-width: 250px; font-size: 0.8rem;" onchange="previewImage(event)">
-                    </div>
-                    <label class="settings-form-label">NAMA LENGKAP</label>
-                    <input type="text" name="nama" class="settings-input"
-                        value="<?= htmlspecialchars($active_user['nama']) ?>" required>
-                    <label class="settings-form-label">USERNAME</label>
-                    <input type="text" name="username" class="settings-input"
-                        value="<?= htmlspecialchars($active_user['username']) ?>" required>
-                    <div class="custom-modal-actions mt-2">
-                        <button type="button" class="btn-modal-cancel" onclick="closeSettingsModal()">Batal</button>
-                        <button type="submit" class="btn-modal-confirm"><i class="bi bi-save-fill me-2"></i> Simpan
-                            Profil</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    <?php endif; ?>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const totalTagihan = <?= $total ?>;
@@ -794,14 +629,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                     }
                 }
             });
-        }
-
-        function openSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
-        function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; }
-        function previewImage(event) {
-            var reader = new FileReader();
-            reader.onload = function () { document.getElementById('previewPP').src = reader.result; }
-            if (event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
         }
     </script>
 </body>

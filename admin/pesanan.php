@@ -2,8 +2,6 @@
 session_start();
 require_once '../config/koneksi.php';
 
-/** @var mysqli $conn */
-
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
     exit;
@@ -12,11 +10,9 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     $order_id = (int) $_POST['order_id'];
     $new_status = $_POST['status'];
-
     $stmt = mysqli_prepare($conn, "UPDATE orders SET status = ? WHERE id = ?");
     mysqli_stmt_bind_param($stmt, "si", $new_status, $order_id);
     mysqli_stmt_execute($stmt);
-
     header('Location: pesanan.php');
     exit;
 }
@@ -30,12 +26,15 @@ if (isset($_GET['delete'])) {
     exit;
 }
 
-$pesanan = mysqli_query($conn, "
-    SELECT o.*, u.nama as customer_name, u.email
-    FROM orders o 
-    LEFT JOIN users u ON o.user_id = u.id 
-    ORDER BY o.created_at DESC
-");
+$orders_data = [];
+$res_orders = mysqli_query($conn, "SELECT o.*, u.nama as customer_name, u.email FROM orders o LEFT JOIN users u ON o.user_id = u.id ORDER BY o.created_at DESC");
+
+while ($row = mysqli_fetch_assoc($res_orders)) {
+    $oid = $row['id'];
+    $res_items = mysqli_query($conn, "SELECT od.*, p.nama_barang FROM order_details od JOIN products p ON od.product_id = p.id WHERE od.order_id = $oid");
+    $row['items'] = mysqli_fetch_all($res_items, MYSQLI_ASSOC);
+    $orders_data[] = $row;
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -181,17 +180,6 @@ $pesanan = mysqli_query($conn, "
             margin-top: 15px !important;
         }
 
-        .dropdown-item {
-            border-radius: 8px;
-            padding: 8px 15px;
-            font-weight: 500;
-        }
-
-        .dropdown-item:hover {
-            background-color: #F8FAFC;
-            color: var(--brand-purple);
-        }
-
         .main-content {
             padding: 40px 0;
             flex-grow: 1;
@@ -237,16 +225,6 @@ $pesanan = mysqli_query($conn, "
             text-transform: uppercase;
             letter-spacing: 1px;
             border-bottom: 1px solid var(--border-subtle);
-        }
-
-        th:first-child {
-            border-top-left-radius: 12px;
-            border-bottom-left-radius: 12px;
-        }
-
-        th:last-child {
-            border-top-right-radius: 12px;
-            border-bottom-right-radius: 12px;
         }
 
         td {
@@ -362,6 +340,10 @@ $pesanan = mysqli_query($conn, "
             animation: modalFadeIn 0.3s forwards;
         }
 
+        .modal-box-large {
+            max-width: 700px;
+        }
+
         .modal-header-custom {
             margin-bottom: 24px;
             text-align: center;
@@ -372,16 +354,6 @@ $pesanan = mysqli_query($conn, "
             font-weight: 800;
             color: var(--brand-navy);
             margin-bottom: 10px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 700;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
         }
 
         .form-select {
@@ -396,15 +368,10 @@ $pesanan = mysqli_query($conn, "
             margin-bottom: 25px;
         }
 
-        .form-select:focus {
-            border-color: var(--brand-purple);
-            box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
-            background: white;
-        }
-
         .modal-actions {
             display: flex;
             gap: 12px;
+            margin-top: 20px;
         }
 
         .btn-outline-custom {
@@ -418,11 +385,6 @@ $pesanan = mysqli_query($conn, "
             cursor: pointer;
             transition: 0.3s;
             text-align: center;
-        }
-
-        .btn-outline-custom:hover {
-            border-color: var(--text-dark);
-            color: var(--text-dark);
         }
 
         .btn-primary-custom {
@@ -439,8 +401,15 @@ $pesanan = mysqli_query($conn, "
             text-align: center;
         }
 
-        .btn-primary-custom:hover {
-            transform: translateY(-2px);
+        .detail-item-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px dashed var(--border-subtle);
+        }
+
+        .detail-item-row:last-child {
+            border-bottom: none;
         }
 
         footer {
@@ -467,7 +436,7 @@ $pesanan = mysqli_query($conn, "
                 <a class="brand-pill" href="index.php">
                     <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
-                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
                 </a>
                 <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
                     data-bs-target="#navbarNav">
@@ -485,7 +454,7 @@ $pesanan = mysqli_query($conn, "
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
                                 class="bi bi-chat-dots"></i> Chat</a></li>
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2"
-                            href="../admin/lihat_toko.php" target="_blank"><i class="bi bi-shop"></i> Lihat Toko</a>
+                            href="../customer/katalog.php" target="_blank"><i class="bi bi-shop"></i> Lihat Toko</a>
                     </li>
                 </ul>
             </div>
@@ -499,8 +468,8 @@ $pesanan = mysqli_query($conn, "
                         </span>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
-                                    class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        <li><a class="dropdown-item text-danger fw-bold d-flex align-items-center"
+                                href="../auth/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                     </ul>
                 </div>
             </div>
@@ -527,7 +496,7 @@ $pesanan = mysqli_query($conn, "
                             </tr>
                         </thead>
                         <tbody>
-                            <?php while ($order = mysqli_fetch_assoc($pesanan)): ?>
+                            <?php foreach ($orders_data as $order): ?>
                                 <tr>
                                     <td class="fw-bold" style="color: var(--brand-purple);">#
                                         <?= $order['id']; ?>
@@ -547,17 +516,21 @@ $pesanan = mysqli_query($conn, "
                                     <td>
                                         <div class="d-flex gap-2">
                                             <button class="btn-action"
-                                                onclick="openModal(<?= $order['id']; ?>, '<?= $order['status']; ?>')">
-                                                <i class="bi bi-pencil-square"></i> Update
+                                                onclick='openDetailModal(<?= json_encode($order) ?>)'>
+                                                <i class="bi bi-eye"></i> Detail
+                                            </button>
+                                            <button class="btn-action"
+                                                onclick="openStatusModal(<?= $order['id']; ?>, '<?= $order['status']; ?>')">
+                                                <i class="bi bi-pencil-square"></i> Status
                                             </button>
                                             <a href="pesanan.php?delete=<?= $order['id']; ?>" class="btn-action btn-delete"
-                                                onclick="return confirm('Yakin ingin menghapus histori pesanan ini secara permanen?')">
+                                                onclick="return confirm('Hapus histori pesanan ini?')">
                                                 <i class="bi bi-trash3-fill"></i>
                                             </a>
                                         </div>
                                     </td>
                                 </tr>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
@@ -568,57 +541,83 @@ $pesanan = mysqli_query($conn, "
     <div id="statusModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header-custom">
-                <div style="font-size: 2.5rem; color: var(--brand-purple); margin-bottom: 15px;"><i
-                        class="bi bi-arrow-repeat"></i></div>
-                <h3>Update Status Pesanan</h3>
-                <p class="text-muted small mb-0">Ubah status progres untuk pesanan #<span id="displayOrderId"></span>
-                </p>
+                <h3>Update Status</h3>
+                <p class="text-muted small mb-0">Pesanan #<span id="displayOrderId"></span></p>
             </div>
             <form method="POST">
                 <input type="hidden" name="order_id" id="modalOrderId">
-                <div class="form-group">
-                    <label class="form-label">Status Saat Ini</label>
-                    <select name="status" id="modalStatus" class="form-select" required>
-                        <option value="pending">PENDING (Menunggu Pembayaran)</option>
-                        <option value="paid">PAID (Dibayar - Diproses)</option>
-                        <option value="shipped">SHIPPED (Sedang Dikirim)</option>
-                        <option value="delivered">DELIVERED (Selesai Diterima)</option>
-                        <option value="cancelled">CANCELLED (Dibatalkan)</option>
-                    </select>
-                </div>
+                <select name="status" id="modalStatus" class="form-select" required>
+                    <option value="pending">PENDING</option>
+                    <option value="paid">PAID</option>
+                    <option value="shipped">SHIPPED</option>
+                    <option value="delivered">DELIVERED</option>
+                    <option value="cancelled">CANCELLED</option>
+                </select>
                 <div class="modal-actions">
-                    <button type="button" class="btn-outline-custom" onclick="closeModal()">Batal</button>
-                    <button type="submit" name="update_status" class="btn-primary-custom">Simpan Perubahan</button>
+                    <button type="button" class="btn-outline-custom" onclick="closeModal('statusModal')">Batal</button>
+                    <button type="submit" name="update_status" class="btn-primary-custom">Simpan</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <div id="detailModal" class="modal-overlay">
+        <div class="modal-box modal-box-large">
+            <div class="modal-header-custom"
+                style="text-align: left; border-bottom: 1px solid var(--border-subtle); padding-bottom: 15px;">
+                <h3><i class="bi bi-box-seam me-2"></i> Detail Pesanan #<span id="detOrderId"></span></h3>
+            </div>
+            <div id="detailItemsContainer" style="max-height: 400px; overflow-y: auto; margin-bottom: 20px;"></div>
+            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                <span class="fw-bold text-muted">TOTAL TAGIHAN</span>
+                <span class="fw-bold fs-4 text-gradient" id="detTotal"></span>
+            </div>
+            <div class="modal-actions mt-4">
+                <button type="button" class="btn-primary-custom w-100"
+                    onclick="closeModal('detailModal')">Tutup</button>
+            </div>
+        </div>
+    </div>
+
     <footer>
-        <div class="container small fw-medium opacity-75">
-            &copy;
+        <div class="container small fw-medium opacity-75">&copy;
             <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function openModal(orderId, currentStatus) {
+        function openStatusModal(orderId, currentStatus) {
             document.getElementById('modalOrderId').value = orderId;
             document.getElementById('displayOrderId').innerText = orderId;
             document.getElementById('modalStatus').value = currentStatus;
             document.getElementById('statusModal').classList.add('active');
         }
 
-        function closeModal() {
-            document.getElementById('statusModal').classList.remove('active');
+        function openDetailModal(order) {
+            document.getElementById('detOrderId').innerText = order.id;
+            document.getElementById('detTotal').innerText = 'Rp ' + parseInt(order.total_harga).toLocaleString('id-ID');
+
+            let html = '';
+            order.items.forEach(item => {
+                const subtotal = parseInt(item.harga_satuan) * parseInt(item.jumlah);
+                html += `
+                <div class="detail-item-row">
+                    <div>
+                        <div class="fw-bold" style="color: var(--brand-navy);">${item.nama_barang}</div>
+                        <div class="small text-muted"><span class="badge bg-light text-dark border me-2">${item.varian}</span> x${item.jumlah} Unit</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small text-muted">@ Rp ${parseInt(item.harga_satuan).toLocaleString('id-ID')}</div>
+                        <div class="fw-bold">Rp ${subtotal.toLocaleString('id-ID')}</div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('detailItemsContainer').innerHTML = html;
+            document.getElementById('detailModal').classList.add('active');
         }
 
-        setInterval(function () {
-            if (!document.getElementById('statusModal').classList.contains('active')) {
-                location.reload();
-            }
-        }, 30000);
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
     </script>
 </body>
 

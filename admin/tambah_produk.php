@@ -25,30 +25,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (in_array($ext, $allowed)) {
             $new_filename = time() . '_' . uniqid() . '.' . $ext;
-            $upload_path = '../uploads/' . $new_filename;
-
-            if (!is_dir('../uploads')) {
-                mkdir('../uploads', 0777, true);
-            }
-
-            if (move_uploaded_file($_FILES['gambar']['tmp_name'], $upload_path)) {
+            $upload_path = '../uploads/';
+            if (!is_dir($upload_path))
+                mkdir($upload_path, 0777, true);
+            if (move_uploaded_file($_FILES['gambar']['tmp_name'], $upload_path . $new_filename)) {
                 $gambar = $new_filename;
             } else {
                 $error = "Gagal mengupload gambar.";
             }
         } else {
-            $error = "Format gambar tidak didukung. Gunakan JPG, PNG, atau WEBP.";
+            $error = "Format gambar tidak didukung.";
         }
     }
 
     if (empty($error)) {
         $decoded = json_decode($varian_json, true);
         if (json_last_error() !== JSON_ERROR_NONE || empty($decoded)) {
-            $error = "Minimal satu varian RAM/ROM harus diisi dengan benar.";
+            $error = "Minimal satu varian RAM/ROM harus diisi.";
         } else {
             $harga_min = min(array_column($decoded, 'harga'));
             $harga_max = max(array_column($decoded, 'harga'));
 
+            // Menjumlahkan stok total dari setiap varian
             $stok_total = 0;
             foreach ($decoded as $v) {
                 $stok_total += (int) ($v['stok'] ?? 0);
@@ -288,7 +286,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 12px;
             border-radius: 12px;
             border: 1px solid var(--border-subtle);
-            animation: fadeIn 0.3s ease;
         }
 
         .btn-remove-var {
@@ -372,36 +369,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             text-align: center;
             color: white;
         }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
     </style>
 </head>
 
 <body>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container d-lg-flex px-4">
-            <div class="nav-zone-left" style="flex: 1;">
+            <div class="nav-zone-left">
                 <a class="brand-pill" href="index.php">
                     <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
                 </a>
-                <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#navbarNav">
-                    <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
-                </button>
             </div>
-            <div class="collapse navbar-collapse nav-zone-center justify-content-center" id="navbarNav">
+            <div class="collapse navbar-collapse nav-zone-center" id="navbarNav">
                 <ul class="navbar-nav align-items-center gap-2 mt-3 mt-lg-0">
                     <li class="nav-item"><a class="nav-link" href="index.php"><i class="bi bi-speedometer2"></i>
                             Dashboard</a></li>
@@ -411,23 +392,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             Pesanan</a></li>
                     <li class="nav-item"><a class="nav-link" href="chat.php"><i class="bi bi-chat-dots"></i> Chat</a>
                     </li>
-                    <li class="nav-item"><a class="nav-link" href="../customer/katalog.php" target="_blank"><i
-                                class="bi bi-shop"></i> Lihat Toko</a></li>
                 </ul>
             </div>
-            <div class="collapse navbar-collapse nav-zone-right justify-content-end" id="navbarNavRight"
-                style="flex: 1;">
-                <div class="dropdown">
-                    <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-shield-check fs-5 text-gradient"></i>
-                        <span class="text-gradient">
-                            <?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
-                        </span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
-                                    class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
-                    </ul>
+            <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight">
+                <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0 w-100 justify-content-lg-end">
+                    <div class="dropdown">
+                        <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-shield-check fs-5 text-gradient"></i>
+                            <span class="text-gradient">
+                                <?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
+                            </span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
+                                        class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -435,10 +415,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <main class="main-content">
         <div class="container">
-            <div class="page-header justify-content-center">
+            <div class="page-header">
                 <h1><i class="bi bi-plus-circle text-muted"></i> Tambah Produk Baru</h1>
             </div>
-
             <div class="content-card">
                 <?php if ($error): ?>
                     <div class="alert alert-danger rounded-4 fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -491,16 +470,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <small class="fw-bold text-muted text-center">STOK</small>
                             <small></small>
                         </div>
-
                         <div id="variant-container"></div>
-
                         <button type="button" id="add-variant-btn" class="btn-add-var mt-2">
                             <i class="bi bi-plus-lg"></i> Tambah Opsi Varian
                         </button>
                     </div>
 
                     <input type="hidden" name="varian_json" id="varian-json-input">
-
                     <div class="d-flex gap-3">
                         <button type="submit" class="btn-primary-custom flex-grow-1"><i class="bi bi-save me-2"></i>
                             Simpan ke Database</button>
@@ -512,8 +488,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
 
     <footer>
-        <div class="container small fw-medium opacity-75">
-            &copy;
+        <div class="container small fw-medium opacity-75">&copy;
             <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.
         </div>
     </footer>
@@ -562,7 +537,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         container.addEventListener('input', syncVariants);
         addBtn.addEventListener('click', createVariantRow);
-
         createVariantRow();
     </script>
 </body>

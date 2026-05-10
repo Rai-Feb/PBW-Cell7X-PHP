@@ -2,13 +2,12 @@
 session_start();
 require_once '../config/koneksi.php';
 
-/** @var mysqli $conn */
-
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_SESSION['user_id'])) {
     
     if ($_POST['action'] === 'update_profile') {
         $nama = trim($_POST['nama']);
         $username = trim($_POST['username']);
+        $new_password = $_POST['new_password'] ?? '';
         $user_id = $_SESSION['user_id'];
         
         $stmt_get = mysqli_prepare($conn, "SELECT profile_picture FROM users WHERE id = ?");
@@ -39,8 +38,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
             }
         }
 
-        $stmt_update = mysqli_prepare($conn, "UPDATE users SET nama = ?, username = ?, profile_picture = ? WHERE id = ?");
-        mysqli_stmt_bind_param($stmt_update, "sssi", $nama, $username, $profile_picture, $user_id);
+        if (!empty($new_password)) {
+            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+            $stmt_update = mysqli_prepare($conn, "UPDATE users SET nama = ?, username = ?, profile_picture = ?, password = ? WHERE id = ?");
+            mysqli_stmt_bind_param($stmt_update, "ssssi", $nama, $username, $profile_picture, $hashed_password, $user_id);
+        } else {
+            $stmt_update = mysqli_prepare($conn, "UPDATE users SET nama = ?, username = ?, profile_picture = ? WHERE id = ?");
+            mysqli_stmt_bind_param($stmt_update, "sssi", $nama, $username, $profile_picture, $user_id);
+        }
         
         if (mysqli_stmt_execute($stmt_update)) {
             $_SESSION['nama'] = $nama;
@@ -55,19 +60,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_
     if ($_POST['action'] === 'add_to_cart') {
         $pid = (int)$_POST['product_id'];
         $qty = (int)$_POST['qty'];
+        $v_idx = isset($_POST['variant_index']) ? (int)$_POST['variant_index'] : 0;
+        $cart_key = $pid . '_' . $v_idx;
 
         if (!isset($_SESSION['keranjang'])) {
             $_SESSION['keranjang'] = [];
         }
 
-        if (isset($_SESSION['keranjang'][$pid])) {
-            $_SESSION['keranjang'][$pid] += $qty;
+        if (isset($_SESSION['keranjang'][$cart_key])) {
+            $_SESSION['keranjang'][$cart_key] += $qty;
         } else {
-            $_SESSION['keranjang'][$pid] = $qty;
+            $_SESSION['keranjang'][$cart_key] = $qty;
         }
 
         $_SESSION['success_msg'] = "Produk berhasil ditambahkan ke keranjang!";
-        
         $qs = $_SERVER['QUERY_STRING'] ? '?' . $_SERVER['QUERY_STRING'] : '';
         header("Location: katalog.php" . $qs);
         exit;
@@ -163,283 +169,77 @@ if (isset($_SESSION['user_id'])) {
 
         * { font-family: 'Plus Jakarta Sans', sans-serif; }
 
-        body {
-            background-color: var(--bg-main);
-            color: var(--text-dark);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+        body { background-color: var(--bg-main); color: var(--text-dark); min-height: 100vh; display: flex; flex-direction: column; }
 
-        .navbar {
-            background: var(--brand-gradient) !important;
-            padding: 0.8rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.35); 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            z-index: 100;
-        }
-
-        @media (min-width: 992px) {
-            .nav-zone-left { flex: 1; display: flex; justify-content: flex-start; }
-            .nav-zone-center { flex: 2; display: flex; justify-content: center; } 
-            .nav-zone-right { flex: 1; display: flex; justify-content: flex-end; }
-        }
-
-        .brand-pill {
-            background: #FFFFFF;
-            padding: 6px 20px 6px 8px;
-            border-radius: 30px;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .brand-pill:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0,0,0,0.15);
-        }
-
-        .brand-logo-img {
-            height: 30px;
-            width: 30px;
-            border-radius: 50%;
-            object-fit: contain;
-        }
-
-        .text-gradient {
-            background: var(--brand-gradient);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .nav-link {
-            color: rgba(255, 255, 255, 0.85) !important;
-            font-weight: 600;
-            margin: 0 5px;
-            padding: 8px 16px !important;
-            border-radius: 12px;
-            transition: all 0.3s;
-        }
-
-        .nav-link:hover, .nav-link.active {
-            background: rgba(255, 255, 255, 0.2);
-            color: #FFFFFF !important;
-            transform: translateY(-1px);
-        }
-
-        .btn-white-nav {
-            background: #FFFFFF;
-            color: var(--brand-purple);
-            font-weight: 700;
-            padding: 8px 20px;
-            border-radius: 30px;
-            border: none;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-
-        .btn-white-nav:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
-            color: var(--brand-pink);
-        }
-
-        .user-nav-avatar {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 1px solid var(--border-subtle);
-        }
-
-        .dropdown-menu {
-            border: none;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
-            padding: 10px;
-            margin-top: 15px !important;
-        }
+        .navbar { background: var(--brand-gradient) !important; padding: 0.8rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.35); box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 100; }
+        @media (min-width: 992px) { .nav-zone-left { flex: 1; display: flex; justify-content: flex-start; } .nav-zone-center { flex: 2; display: flex; justify-content: center; } .nav-zone-right { flex: 1; display: flex; justify-content: flex-end; } }
+        .brand-pill { background: #FFFFFF; padding: 6px 20px 6px 8px; border-radius: 30px; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.3s, box-shadow 0.3s; }
+        .brand-pill:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); }
+        .brand-logo-img { height: 30px; width: 30px; border-radius: 50%; object-fit: contain; }
+        .text-gradient { background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-link { color: rgba(255, 255, 255, 0.85) !important; font-weight: 600; margin: 0 5px; padding: 8px 16px !important; border-radius: 12px; transition: all 0.3s; }
+        .nav-link:hover, .nav-link.active { background: rgba(255, 255, 255, 0.2); color: #FFFFFF !important; transform: translateY(-1px); }
+        .btn-white-nav { background: #FFFFFF; color: var(--brand-purple); font-weight: 700; padding: 8px 20px; border-radius: 30px; border: none; transition: all 0.3s; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .btn-white-nav:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.2); color: var(--brand-pink); }
+        .user-nav-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-subtle); }
+        .dropdown-menu { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 10px; margin-top: 15px !important; }
         .dropdown-item { border-radius: 8px; padding: 8px 15px; font-weight: 500; cursor: pointer; transition: all 0.2s;}
         .dropdown-item:hover { background-color: #F8FAFC; color: var(--brand-purple); }
         .dropdown-item.text-danger:hover { background-color: #FEF2F2; color: #DC2626 !important; }
 
-        .hero-colorful {
-            background: var(--brand-gradient);
-            border-radius: 30px;
-            padding: 50px 50px 90px 50px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: var(--glow-shadow);
-            margin-top: 30px;
-        }
-
+        .hero-colorful { background: var(--brand-gradient); border-radius: 30px; padding: 50px 50px 90px 50px; position: relative; overflow: hidden; box-shadow: var(--glow-shadow); margin-top: 30px; }
         .orb-1 { position: absolute; top: -40px; right: 5%; width: 250px; height: 250px; background: rgba(255, 255, 255, 0.15); border-radius: 50%; backdrop-filter: blur(8px); }
         .orb-2 { position: absolute; bottom: -50px; right: 15%; width: 150px; height: 150px; background: rgba(255, 255, 255, 0.1); border-radius: 50%; backdrop-filter: blur(4px); }
 
-        .toolbar-overlap {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: 20px;
-            padding: 15px 20px;
-            margin-top: -40px;
-            position: relative;
-            z-index: 5;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-            width: 90%;
-            margin-left: auto; margin-right: auto; margin-bottom: 40px;
-        }
-
+        .toolbar-overlap { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 20px; padding: 15px 20px; margin-top: -40px; position: relative; z-index: 5; box-shadow: 0 10px 40px rgba(0,0,0,0.08); width: 90%; margin-left: auto; margin-right: auto; margin-bottom: 40px; }
         .search-box input { background: #F4F7FE; border: 1px solid transparent; color: var(--text-dark); border-radius: 12px; padding: 12px 20px 12px 45px; transition: all 0.3s; font-weight: 500; }
         .search-box input:focus { background: #FFFFFF; border-color: var(--brand-purple); box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1); outline: none; }
         .search-box i { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--text-muted); z-index: 4; }
-
         .form-select { background-color: #F4F7FE; border: 1px solid transparent; color: var(--text-dark); border-radius: 12px; padding: 12px 15px; font-weight: 600; cursor: pointer; outline: none; }
         .form-select:focus { border-color: var(--brand-purple); box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1); }
 
-        .product-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: 24px;
-            overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            height: 100%;
-            box-shadow: var(--card-shadow);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .product-card:hover {
-            transform: translateY(-8px);
-            border-color: var(--brand-pink);
-            box-shadow: var(--glow-shadow);
-        }
-
-        .product-card .card-img-wrapper {
-            height: 220px;
-            display: flex; align-items: center; justify-content: center;
-            padding: 20px; border-bottom: 1px solid #F8FAFC;
-        }
-        .product-card .card-img-top {
-            max-height: 100%; max-width: 100%; object-fit: contain; transition: transform 0.5s ease;
-        }
+        .product-card { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: 24px; overflow: hidden; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); height: 100%; box-shadow: var(--card-shadow); display: flex; flex-direction: column; }
+        .product-card:hover { transform: translateY(-8px); border-color: var(--brand-pink); box-shadow: var(--glow-shadow); }
+        .product-card .card-img-wrapper { height: 220px; display: flex; align-items: center; justify-content: center; padding: 20px; border-bottom: 1px solid #F8FAFC; }
+        .product-card .card-img-top { max-height: 100%; max-width: 100%; object-fit: contain; transition: transform 0.5s ease; }
         .product-card:hover .card-img-top { transform: scale(1.08); }
 
-        .badge-stock {
-            position: absolute; top: 15px; left: 15px;
-            color: white; padding: 6px 14px; border-radius: 12px;
-            font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
+        .badge-stock { position: absolute; top: 15px; left: 15px; color: white; padding: 6px 14px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; z-index: 2; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .stock-available { background: linear-gradient(135deg, #10B981, #059669); } 
         .stock-warning { background: linear-gradient(135deg, #F59E0B, #D97706); } 
         .stock-empty { background: linear-gradient(135deg, #EF4444, #DC2626); } 
 
         .card-body { padding: 24px; display: flex; flex-direction: column; flex-grow: 1; }
         .card-title { font-weight: 700; font-size: 1.15rem; margin-bottom: 10px; }
-        
-        .variant-pill {
-            background: #F4F7FE;
-            color: var(--text-dark);
-            border: 1px solid var(--border-subtle);
-            font-size: 0.75rem;
-            padding: 6px 12px;
-            border-radius: 8px;
-            display: inline-flex;
-            font-weight: 700;
-        }
-
+        .variant-pill { background: #F4F7FE; color: var(--text-dark); border: 1px solid var(--border-subtle); font-size: 0.75rem; padding: 6px 12px; border-radius: 8px; display: inline-flex; font-weight: 700; }
         .price-container { margin-top: 15px; margin-bottom: 20px; }
         .price { color: var(--brand-pink); font-weight: 800; font-size: 1.2rem; }
         .price-range { color: var(--text-dark); font-weight: 800; font-size: 1.1rem; }
 
-        .btn-outline-action {
-            border: 2px solid var(--border-subtle);
-            background: transparent; color: var(--text-muted);
-            border-radius: 14px; width: 45px; height: 45px;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.3s;
-        }
-        .btn-outline-action:hover {
-            background: var(--brand-gradient); 
-            color: white; 
-            border-color: transparent; 
-            box-shadow: var(--glow-shadow); 
-            transform: scale(1.05);
-        }
-
-        .btn-add-cart {
-            background: #F4F7FE; border: none; color: var(--brand-navy);
-            border-radius: 14px; font-weight: 700; padding: 10px;
-            transition: all 0.3s; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .btn-add-cart:hover {
-            background: var(--brand-gradient); color: white; box-shadow: var(--glow-shadow);
-        }
+        .btn-outline-action { border: 2px solid var(--border-subtle); background: transparent; color: var(--text-muted); border-radius: 14px; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+        .btn-outline-action:hover { background: var(--brand-gradient); color: white; border-color: transparent; box-shadow: var(--glow-shadow); transform: scale(1.05); }
+        .btn-add-cart { background: #F4F7FE; border: none; color: var(--brand-navy); border-radius: 14px; font-weight: 700; padding: 10px; transition: all 0.3s; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-add-cart:hover { background: var(--brand-gradient); color: white; box-shadow: var(--glow-shadow); }
 
         footer { margin-top: auto; background: var(--brand-gradient); padding: 20px 0; text-align: center; color: white;}
 
-        .custom-modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(8px);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-        }
+        .custom-modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); z-index: 9999; align-items: center; justify-content: center; }
+        .custom-modal-box { background: var(--bg-card); width: 90%; max-width: 400px; border-radius: 24px; padding: 30px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.1); transform: translateY(20px); animation: modalFadeIn 0.3s forwards; }
+        .custom-settings-box { max-width: 500px; text-align: left; }
+        @keyframes modalFadeIn { to { transform: translateY(0); opacity: 1; } }
 
-        .custom-modal-box {
-            background: var(--bg-card);
-            width: 90%;
-            max-width: 400px;
-            border-radius: 24px;
-            padding: 30px;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            transform: translateY(20px);
-            animation: modalFadeIn 0.3s forwards;
-        }
-
-        .custom-settings-box {
-            max-width: 500px;
-            text-align: left;
-        }
-
-        @keyframes modalFadeIn {
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .modal-icon-wrapper {
-            width: 70px; height: 70px;
-            background: #F4F7FE;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 2rem;
-            color: var(--brand-purple);
-        }
-
+        .modal-icon-wrapper { width: 70px; height: 70px; background: #F4F7FE; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 2rem; color: var(--brand-purple); }
         .custom-modal-title { font-weight: 800; color: var(--brand-navy); font-size: 1.25rem; margin-bottom: 10px; }
         .custom-modal-text { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; line-height: 1.5; }
-        
-        .custom-modal-actions { display: flex; gap: 12px; }
-        .btn-modal-cancel { flex: 1; padding: 12px; border-radius: 14px; background: white; border: 2px solid var(--border-subtle); color: var(--text-muted); font-weight: 700; cursor: pointer; transition: 0.3s; }
+        .custom-modal-actions { display: flex; gap: 12px; margin-top: 15px;}
+        .btn-modal-cancel { flex: 1; padding: 12px; border-radius: 14px; background: white; border: 2px solid var(--border-subtle); color: var(--text-muted); font-weight: 700; cursor: pointer; transition: 0.3s; text-align: center;}
         .btn-modal-cancel:hover { border-color: var(--text-dark); color: var(--text-dark); }
-        .btn-modal-confirm { flex: 1; padding: 12px; border-radius: 14px; background: var(--brand-gradient); border: none; color: white; font-weight: 700; cursor: pointer; transition: 0.3s; box-shadow: var(--glow-shadow); }
+        .btn-modal-confirm { flex: 1; padding: 12px; border-radius: 14px; background: var(--brand-gradient); border: none; color: white; font-weight: 700; cursor: pointer; transition: 0.3s; box-shadow: var(--glow-shadow); text-align: center;}
         .btn-modal-confirm:hover { transform: translateY(-2px); }
 
         .settings-form-label { font-weight: 700; color: var(--text-muted); font-size: 0.85rem; letter-spacing: 0.5px; margin-bottom: 8px; display: block; text-transform: uppercase;}
         .settings-input { width: 100%; padding: 12px 18px; border: 1px solid var(--border-subtle); border-radius: 14px; background: #F8FAFC; font-weight: 500; transition: all 0.3s; outline: none; margin-bottom: 20px;}
         .settings-input:focus { border-color: var(--brand-purple); box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1); background: white; }
-        
         .settings-avatar-preview { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid var(--brand-pink); margin-bottom: 15px; box-shadow: var(--glow-shadow);}
     </style>
 </head>
@@ -643,6 +443,7 @@ if (isset($_SESSION['user_id'])) {
                                     <form action="" method="POST" class="m-0 flex-grow-1" onsubmit="confirmAddToCart(event, this, '<?= htmlspecialchars($product['nama_barang'], ENT_QUOTES) ?>')">
                                         <input type="hidden" name="action" value="add_to_cart">
                                         <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
+                                        <input type="hidden" name="variant_index" value="0">
                                         <input type="hidden" name="qty" value="1">
                                         <button type="submit" class="btn-add-cart" <?= $stok == 0 ? 'disabled' : '' ?>>
                                             <i class="bi bi-cart-plus fs-5"></i> <?= $stok == 0 ? 'Habis' : 'Keranjang' ?>
@@ -728,6 +529,11 @@ if (isset($_SESSION['user_id'])) {
 
                 <label class="settings-form-label">USERNAME</label>
                 <input type="text" name="username" class="settings-input" value="<?= htmlspecialchars($active_user['username']) ?>" required>
+
+                <hr class="my-4 border-subtle">
+                <h6 class="fw-bold mb-3" style="color: var(--brand-navy);">Keamanan</h6>
+                <label class="settings-form-label">PASSWORD BARU (Kosongkan jika tidak diubah)</label>
+                <input type="password" name="new_password" class="settings-input" placeholder="Masukkan password baru">
 
                 <div class="custom-modal-actions mt-2">
                     <button type="button" class="btn-modal-cancel" onclick="closeSettingsModal()">Batal</button>

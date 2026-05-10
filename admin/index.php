@@ -2,10 +2,62 @@
 session_start();
 require_once '../config/koneksi.php';
 
-/** @var mysqli $conn */
-
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
+    exit;
+}
+
+$user_id = $_SESSION['user_id'];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
+    $nama = trim($_POST['nama']);
+    $username = trim($_POST['username']);
+    $new_password = $_POST['new_password'] ?? '';
+
+    $stmt_get = mysqli_prepare($conn, "SELECT profile_picture FROM users WHERE id = ?");
+    mysqli_stmt_bind_param($stmt_get, "i", $user_id);
+    mysqli_stmt_execute($stmt_get);
+    $res = mysqli_stmt_get_result($stmt_get);
+    $current_user = mysqli_fetch_assoc($res);
+    $profile_picture = $current_user['profile_picture'] ?? '';
+
+    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
+        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+        $ext = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
+
+        if (in_array($ext, $allowed)) {
+            $new_filename = 'pp_' . time() . '_' . uniqid() . '.' . $ext;
+            $upload_path = '../uploads/profiles/';
+
+            if (!is_dir($upload_path)) {
+                mkdir($upload_path, 0777, true);
+            }
+
+            if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $upload_path . $new_filename)) {
+                if (!empty($profile_picture) && file_exists($upload_path . $profile_picture)) {
+                    unlink($upload_path . $profile_picture);
+                }
+                $profile_picture = $new_filename;
+            }
+        }
+    }
+
+    if (!empty($new_password)) {
+        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+        $stmt_update = mysqli_prepare($conn, "UPDATE users SET nama = ?, username = ?, profile_picture = ?, password = ? WHERE id = ?");
+        mysqli_stmt_bind_param($stmt_update, "ssssi", $nama, $username, $profile_picture, $hashed_password, $user_id);
+    } else {
+        $stmt_update = mysqli_prepare($conn, "UPDATE users SET nama = ?, username = ?, profile_picture = ? WHERE id = ?");
+        mysqli_stmt_bind_param($stmt_update, "sssi", $nama, $username, $profile_picture, $user_id);
+    }
+
+    if (mysqli_stmt_execute($stmt_update)) {
+        $_SESSION['nama'] = $nama;
+        $_SESSION['username'] = $username;
+        $_SESSION['profile_picture'] = $profile_picture;
+        $_SESSION['success_msg'] = "Profil berhasil diperbarui!";
+    }
+    header("Location: index.php");
     exit;
 }
 
@@ -32,6 +84,12 @@ $stmt_baru = mysqli_prepare($conn, "SELECT o.*, u.username FROM orders o LEFT JO
 mysqli_stmt_bind_param($stmt_baru, "ss", $start_query, $end_query);
 mysqli_stmt_execute($stmt_baru);
 $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
+
+$active_user = null;
+$stmt_user = mysqli_prepare($conn, "SELECT nama, username, profile_picture FROM users WHERE id = ?");
+mysqli_stmt_bind_param($stmt_user, "i", $user_id);
+mysqli_stmt_execute($stmt_user);
+$active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -169,6 +227,14 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
             color: var(--brand-pink);
         }
 
+        .user-nav-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid var(--border-subtle);
+        }
+
         .dropdown-menu {
             border: none;
             border-radius: 16px;
@@ -181,6 +247,8 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
             border-radius: 8px;
             padding: 8px 15px;
             font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
         .dropdown-item:hover {
@@ -446,6 +514,131 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
             color: #DC2626;
         }
 
+        .custom-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .custom-modal-box {
+            background: var(--bg-card);
+            width: 90%;
+            max-width: 400px;
+            border-radius: 24px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transform: translateY(20px);
+            animation: modalFadeIn 0.3s forwards;
+        }
+
+        .custom-settings-box {
+            max-width: 500px;
+            text-align: left;
+        }
+
+        @keyframes modalFadeIn {
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .custom-modal-title {
+            font-weight: 800;
+            color: var(--brand-navy);
+            font-size: 1.25rem;
+            margin-bottom: 10px;
+        }
+
+        .custom-modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .btn-modal-cancel {
+            flex: 1;
+            padding: 12px;
+            border-radius: 14px;
+            background: white;
+            border: 2px solid var(--border-subtle);
+            color: var(--text-muted);
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            text-align: center;
+        }
+
+        .btn-modal-cancel:hover {
+            border-color: var(--text-dark);
+            color: var(--text-dark);
+        }
+
+        .btn-modal-confirm {
+            flex: 1;
+            padding: 12px;
+            border-radius: 14px;
+            background: var(--brand-gradient);
+            border: none;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: var(--glow-shadow);
+            text-align: center;
+        }
+
+        .btn-modal-confirm:hover {
+            transform: translateY(-2px);
+        }
+
+        .settings-form-label {
+            font-weight: 700;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: block;
+            text-transform: uppercase;
+        }
+
+        .settings-input {
+            width: 100%;
+            padding: 12px 18px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            background: #F8FAFC;
+            font-weight: 500;
+            transition: all 0.3s;
+            outline: none;
+            margin-bottom: 20px;
+        }
+
+        .settings-input:focus {
+            border-color: var(--brand-purple);
+            box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
+            background: white;
+        }
+
+        .settings-avatar-preview {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--brand-pink);
+            margin-bottom: 15px;
+            box-shadow: var(--glow-shadow);
+        }
+
         footer {
             margin-top: auto;
             background: var(--brand-gradient);
@@ -459,43 +652,62 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
 <body>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container d-lg-flex px-4">
-            <div class="nav-zone-left">
+            <div class="nav-zone-left" style="flex: 1;">
                 <a class="brand-pill" href="index.php">
-                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
+                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
-                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
                 </a>
                 <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
                     data-bs-target="#navbarNav">
                     <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
                 </button>
             </div>
-            <div class="collapse navbar-collapse nav-zone-center" id="navbarNav">
+            <div class="collapse navbar-collapse nav-zone-center justify-content-center" id="navbarNav">
                 <ul class="navbar-nav align-items-center gap-2 mt-3 mt-lg-0">
-                    <li class="nav-item"><a class="nav-link active" href="index.php"><i class="bi bi-speedometer2"></i>
-                            Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="produk.php"><i class="bi bi-box-seam"></i> Produk</a>
+                    <li class="nav-item"><a class="nav-link active d-flex align-items-center gap-2" href="index.php"><i
+                                class="bi bi-speedometer2"></i> Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="produk.php"><i
+                                class="bi bi-box-seam"></i> Produk</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
+                                class="bi bi-receipt"></i> Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
+                                class="bi bi-chat-dots"></i> Chat</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2"
+                            href="../customer/katalog.php" target="_blank"><i class="bi bi-shop"></i> Lihat Toko</a>
                     </li>
-                    <li class="nav-item"><a class="nav-link" href="pesanan.php"><i class="bi bi-receipt"></i>
-                            Pesanan</a></li>
-                    <li class="nav-item"><a class="nav-link" href="chat.php"><i class="bi bi-chat-dots"></i> Chat</a>
-                    </li>
-                    <li class="nav-item"><a class="nav-link" href="../admin/lihat_toko.php" target="_blank"><i
-                                class="bi bi-shop"></i> Lihat Toko</a></li>
                 </ul>
             </div>
-            <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight">
+            <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight" style="flex: 1;">
                 <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0 w-100 justify-content-lg-end">
                     <div class="dropdown">
                         <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-shield-check fs-5 text-gradient"></i>
+                            <?php if (!empty($active_user['profile_picture'])): ?>
+                                <img src="../uploads/profiles/<?= htmlspecialchars($active_user['profile_picture']) ?>"
+                                    class="user-nav-avatar">
+                            <?php else: ?>
+                                <i class="bi bi-person-circle fs-5 text-gradient"></i>
+                            <?php endif; ?>
                             <span class="text-gradient">
-                                <?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
+                                <?= htmlspecialchars($active_user['username'] ?? $_SESSION['username'] ?? 'Admin') ?>
                             </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
-                                        class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center" type="button"
+                                    onclick="openSettingsModal()">
+                                    <i class="bi bi-gear me-2 text-muted"></i>Settings
+                                </button>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <a class="dropdown-item text-danger fw-bold d-flex align-items-center"
+                                    href="../auth/logout.php">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Logout
+                                </a>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -505,6 +717,14 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
 
     <main class="main-content">
         <div class="container">
+            <?php if (isset($_SESSION['success_msg'])): ?>
+                <div class="alert alert-success rounded-4 fw-bold mb-4">
+                    <i class="bi bi-check-circle-fill me-2"></i>
+                    <?= htmlspecialchars($_SESSION['success_msg']) ?>
+                </div>
+                <?php unset($_SESSION['success_msg']); ?>
+            <?php endif; ?>
+
             <div class="page-header">
                 <h1><i class="bi bi-grid-fill text-muted"></i> Dashboard Overview</h1>
                 <form method="GET" class="filter-box">
@@ -617,7 +837,59 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
         </div>
     </footer>
 
+    <?php if ($active_user): ?>
+        <div class="custom-modal-overlay" id="settingsModal">
+            <div class="custom-modal-box custom-settings-box">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-subtle pb-3">
+                    <h3 class="custom-modal-title m-0"><i class="bi bi-gear-fill me-2"></i> Pengaturan Profil</h3>
+                    <button type="button" class="btn-close shadow-none" onclick="closeSettingsModal()"></button>
+                </div>
+
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="update_profile">
+
+                    <div class="text-center mb-4">
+                        <img id="previewPP"
+                            src="<?= !empty($active_user['profile_picture']) ? '../uploads/profiles/' . htmlspecialchars($active_user['profile_picture']) : 'https://via.placeholder.com/90/F8FAFC/9C27B0?text=PP' ?>"
+                            class="settings-avatar-preview">
+                        <label class="form-label d-block text-center" style="font-size: 0.8rem;">GANTI FOTO PROFIL</label>
+                        <input type="file" name="profile_picture" id="inputPP" class="form-control form-control-sm mx-auto"
+                            accept="image/*" style="max-width: 250px; font-size: 0.8rem;" onchange="previewImage(event)">
+                    </div>
+
+                    <label class="settings-form-label">NAMA LENGKAP</label>
+                    <input type="text" name="nama" class="settings-input"
+                        value="<?= htmlspecialchars($active_user['nama']) ?>" required>
+
+                    <label class="settings-form-label">USERNAME</label>
+                    <input type="text" name="username" class="settings-input"
+                        value="<?= htmlspecialchars($active_user['username']) ?>" required>
+
+                    <hr class="my-4 border-subtle">
+                    <h6 class="fw-bold mb-3" style="color: var(--brand-navy);">Keamanan</h6>
+                    <label class="settings-form-label">PASSWORD BARU (Kosongkan jika tidak diubah)</label>
+                    <input type="password" name="new_password" class="settings-input" placeholder="Masukkan password baru">
+
+                    <div class="custom-modal-actions mt-2">
+                        <button type="button" class="btn-modal-cancel" onclick="closeSettingsModal()">Batal</button>
+                        <button type="submit" class="btn-modal-confirm"><i class="bi bi-save-fill me-2"></i> Simpan
+                            Profil</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function openSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; }
+        function previewImage(event) {
+            var reader = new FileReader();
+            reader.onload = function () { document.getElementById('previewPP').src = reader.result; }
+            if (event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
+        }
+    </script>
 </body>
 
 </html>

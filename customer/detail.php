@@ -18,10 +18,12 @@ if (!$produk) {
 
 $varians = json_decode($produk['varian'], true);
 $selected_harga = $produk['harga_min'];
+$selected_stok = $produk['stok'];
 $selected_label = 'Standard';
 
 if (is_array($varians) && count($varians) > 0) {
     $selected_harga = $varians[0]['harga'];
+    $selected_stok = $varians[0]['stok'] ?? 0;
     $selected_label = $varians[0]['ram'] . 'GB/' . $varians[0]['rom'] . 'GB';
 }
 
@@ -32,21 +34,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
     $user_id = $_SESSION['user_id'];
 
     if ($action === 'beli_sekarang') {
+        $post_product_id = (int) ($_POST['product_id'] ?? $product_id);
+        $v_index = (int) ($_POST['variant_index'] ?? 0);
         $qty = (int) ($_POST['qty'] ?? 1);
-        if (!isset($_SESSION['keranjang'])) {
+        $qty = max(1, min($qty, 999)); 
+        
+        $cart_product_id = ($post_product_id > 0) ? $post_product_id : $product_id;
+        $cart_key = $cart_product_id . '_' . $v_index;
+
+        if (!isset($_SESSION['keranjang']))
             $_SESSION['keranjang'] = [];
-        }
-        if (isset($_SESSION['keranjang'][$product_id])) {
-            $_SESSION['keranjang'][$product_id] += $qty;
-        } else {
-            $_SESSION['keranjang'][$product_id] = $qty;
-        }
-        header('Location: checkout.php');
+        
+        $_SESSION['keranjang'][$cart_key] = ($_SESSION['keranjang'][$cart_key] ?? 0) + $qty;
+
+        header('Location: keranjang.php');
         exit;
     } elseif ($action === 'add_comment') {
         $komentar = trim($_POST['komentar']);
         $parent_id = !empty($_POST['parent_id']) ? (int) $_POST['parent_id'] : null;
-
         if (!empty($komentar)) {
             $stmt_comment = mysqli_prepare($conn, "INSERT INTO comments (product_id, user_id, parent_id, komentar, created_at) VALUES (?, ?, ?, ?, NOW())");
             mysqli_stmt_bind_param($stmt_comment, "iiis", $product_id, $user_id, $parent_id, $komentar);
@@ -57,7 +62,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $is_logged_in) {
     } elseif ($action === 'edit_comment') {
         $comment_id = (int) $_POST['comment_id'];
         $komentar_baru = trim($_POST['komentar_baru']);
-
         if (!empty($komentar_baru)) {
             $stmt_edit = mysqli_prepare($conn, "UPDATE comments SET komentar = ? WHERE id = ? AND user_id = ?");
             mysqli_stmt_bind_param($stmt_edit, "sii", $komentar_baru, $comment_id, $user_id);
@@ -88,7 +92,6 @@ if ($stmt_get) {
 
 $comments_tree = [];
 $replies = [];
-
 foreach ($comments_raw as $c) {
     if ($c['parent_id'] === null) {
         $c['replies'] = [];
@@ -97,7 +100,6 @@ foreach ($comments_raw as $c) {
         $replies[] = $c;
     }
 }
-
 foreach ($replies as $r) {
     if (isset($comments_tree[$r['parent_id']])) {
         $comments_tree[$r['parent_id']]['replies'][] = $r;
@@ -181,7 +183,7 @@ foreach ($replies as $r) {
             gap: 10px;
             text-decoration: none;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
+            transition: transform 0.3s;
         }
 
         .brand-pill:hover {
@@ -231,12 +233,20 @@ foreach ($replies as $r) {
             align-items: center;
             gap: 8px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-decoration: none;
         }
 
         .btn-white-nav:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
             color: var(--brand-pink);
+        }
+
+        .user-nav-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid var(--border-subtle);
         }
 
         .dropdown-menu {
@@ -256,11 +266,6 @@ foreach ($replies as $r) {
         .dropdown-item:hover {
             background-color: #F8FAFC;
             color: var(--brand-purple);
-        }
-
-        .dropdown-item.text-danger:hover {
-            background-color: #FEF2F2;
-            color: #DC2626 !important;
         }
 
         .detail-card {
@@ -378,6 +383,7 @@ foreach ($replies as $r) {
             transition: all 0.2s;
             color: var(--text-muted);
             font-size: 0.9rem;
+            margin-bottom: 8px;
         }
 
         .variant-btn.active {
@@ -456,6 +462,13 @@ foreach ($replies as $r) {
             color: white;
         }
 
+        .btn-main:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
         .btn-chat-seller {
             border: 2px solid var(--border-subtle);
             background: white;
@@ -522,11 +535,6 @@ foreach ($replies as $r) {
             font-weight: 700;
             transition: all 0.3s;
             margin-top: 15px;
-        }
-
-        .btn-comment:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--glow-shadow);
         }
 
         .comment-list {
@@ -634,9 +642,8 @@ foreach ($replies as $r) {
 
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container d-lg-flex">
-
             <div class="nav-zone-left">
-                <a class="brand-pill" href="index.php">
+                <a class="brand-pill" href="katalog.php">
                     <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
@@ -646,21 +653,15 @@ foreach ($replies as $r) {
                     <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
                 </button>
             </div>
-
             <div class="collapse navbar-collapse nav-zone-center" id="navbarNav">
                 <ul class="navbar-nav align-items-center gap-3 mt-3 mt-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center gap-2" href="katalog.php">
-                            <i class="bi bi-grid-fill fs-5"></i> Katalog
-                        </a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="katalog.php"><i
+                                class="bi bi-grid-fill fs-5"></i> Katalog</a></li>
                     <li class="nav-item">
                         <a class="nav-link d-flex align-items-center gap-2 position-relative" href="keranjang.php">
                             <i class="bi bi-cart3 fs-5"></i> Keranjang
-                            <?php
-                            $cart_count = isset($_SESSION['keranjang']) ? count($_SESSION['keranjang']) : 0;
-                            if ($cart_count > 0):
-                                ?>
+                            <?php $cart_count = isset($_SESSION['keranjang']) ? count($_SESSION['keranjang']) : 0;
+                            if ($cart_count > 0): ?>
                                 <span
                                     class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-2 border-white"
                                     style="font-size: 0.6rem;">
@@ -669,24 +670,17 @@ foreach ($replies as $r) {
                             <?php endif; ?>
                         </a>
                     </li>
-                    <?php if (isset($_SESSION['user_id'])): ?>
-                        <li class="nav-item">
-                            <a class="nav-link d-flex align-items-center gap-2" href="pesanan.php">
-                                <i class="bi bi-receipt fs-5"></i> Pesanan
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link d-flex align-items-center gap-2" href="chat.php">
-                                <i class="bi bi-chat-dots fs-5"></i> Chat Seller
-                            </a>
-                        </li>
+                    <?php if ($is_logged_in): ?>
+                        <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
+                                    class="bi bi-receipt fs-5"></i> Pesanan</a></li>
+                        <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
+                                    class="bi bi-chat-dots fs-5"></i> Chat</a></li>
                     <?php endif; ?>
                 </ul>
             </div>
-
             <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight">
                 <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0 w-100 justify-content-lg-end">
-                    <?php if (isset($_SESSION['user_id'])): ?>
+                    <?php if ($is_logged_in): ?>
                         <div class="dropdown">
                             <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 <i class="bi bi-person-circle fs-5 text-gradient"></i>
@@ -695,13 +689,8 @@ foreach ($replies as $r) {
                                 </span>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="profile.php"><i
-                                            class="bi bi-gear me-2 text-muted"></i>Settings</a></li>
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
-                                            class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                                <li><a class="dropdown-item text-danger fw-bold d-flex align-items-center"
+                                        href="../auth/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                             </ul>
                         </div>
                     <?php else: ?>
@@ -711,19 +700,18 @@ foreach ($replies as $r) {
                     <?php endif; ?>
                 </div>
             </div>
-
         </div>
     </nav>
 
     <div class="container flex-grow-1">
         <div class="detail-card">
             <div class="row g-0">
-
                 <div class="col-lg-5">
                     <div class="image-container">
                         <div class="image-frame">
                             <img src="../uploads/<?= htmlspecialchars($produk['gambar']) ?>" class="product-img"
-                                alt="<?= htmlspecialchars($produk['nama_barang']) ?>">
+                                alt="<?= htmlspecialchars($produk['nama_barang']) ?>"
+                                onerror="this.src='https://via.placeholder.com/400x400/F8FAFC/9C27B0?text=No+Image'">
                         </div>
                     </div>
                 </div>
@@ -741,21 +729,14 @@ foreach ($replies as $r) {
                             <?= number_format($selected_harga, 0, ',', '.') ?>
                         </div>
 
-                        <?php
-                        $stok = (int) $produk['stok'];
-                        if ($stok > 3) {
-                            $stock_cls = 'stock-available';
-                            $stock_txt = '<i class="bi bi-check-circle-fill"></i> Tersedia (Sisa ' . $stok . ' Unit)';
-                        } elseif ($stok > 0) {
-                            $stock_cls = 'stock-warning';
-                            $stock_txt = '<i class="bi bi-exclamation-circle-fill"></i> Sisa ' . $stok . ' Unit';
-                        } else {
-                            $stock_cls = 'stock-empty';
-                            $stock_txt = '<i class="bi bi-x-circle-fill"></i> Stok Habis';
-                        }
-                        ?>
-                        <div class="stock-badge <?= $stock_cls ?>">
-                            <?= $stock_txt ?>
+                        <div class="stock-badge <?= $selected_stok > 0 ? 'stock-available' : 'stock-empty' ?>"
+                            id="stock-status">
+                            <?php if ($selected_stok > 0): ?>
+                                <i class="bi bi-check-circle-fill"></i> Tersedia (Sisa
+                                <?= $selected_stok ?> Unit)
+                            <?php else: ?>
+                                <i class="bi bi-x-circle-fill"></i> Stok Varian Ini Habis
+                            <?php endif; ?>
                         </div>
 
                         <div class="mb-4">
@@ -764,8 +745,7 @@ foreach ($replies as $r) {
                                 <?php if (is_array($varians)):
                                     foreach ($varians as $i => $v): ?>
                                         <button type="button" class="variant-btn <?= ($i == 0) ? 'active' : '' ?>"
-                                            onclick="updatePrice(<?= $v['harga'] ?>, this)"
-                                            data-label="<?= htmlspecialchars($v['ram'] . '/' . $v['rom']) ?>">
+                                            onclick="updatePrice(<?= $i ?>)" id="btnVar_<?= $i ?>">
                                             <?= htmlspecialchars($v['ram']) ?>/
                                             <?= htmlspecialchars($v['rom']) ?> GB
                                         </button>
@@ -799,14 +779,13 @@ foreach ($replies as $r) {
 
                         <div class="d-flex gap-3">
                             <?php if ($is_logged_in): ?>
-                                <form method="POST" style="flex: 1;" class="m-0 d-flex">
+                                <form method="POST" style="flex: 1;" class="m-0 d-flex" id="cart-form" onsubmit="updateFormValues()">
                                     <input type="hidden" name="action" value="beli_sekarang">
                                     <input type="hidden" name="product_id" value="<?= $product_id ?>">
+                                    <input type="hidden" name="variant_index" id="formVariantIndex" value="0">
                                     <input type="hidden" name="qty" id="formQty" value="1">
-                                    <input type="hidden" name="variant_label" id="formVariantLabel"
-                                        value="<?= htmlspecialchars($selected_label) ?>">
-                                    <button type="submit" class="btn-main w-100" <?= ($stok <= 0) ? 'disabled' : '' ?>>
-                                        <i class="bi bi-cart-check-fill me-2"></i> Beli Sekarang
+                                    <button type="submit" class="btn-main w-100" id="btn-beli" <?= ($selected_stok <= 0) ? 'disabled' : '' ?>>
+                                        <i class="bi bi-cart-check-fill me-2"></i> Tambah Ke Keranjang
                                     </button>
                                 </form>
                                 <a href="chat.php?msg=<?= urlencode("Halo admin, saya tertarik dengan produk " . $produk['nama_barang']) ?>" class="btn-chat-seller"
@@ -889,7 +868,8 @@ foreach ($replies as $r) {
                                             <button type="button" class="btn btn-sm btn-light border fw-bold"
                                                 onclick="toggleReply(<?= $c['id'] ?>)">Batal</button>
                                             <button type="submit" class="btn btn-sm btn-primary fw-bold"
-                                                style="background: var(--brand-gradient); border:none;">Kirim Balasan</button>
+                                                style="background: var(--brand-gradient); border:none; color:white;">Kirim
+                                                Balasan</button>
                                         </div>
                                     </form>
 
@@ -903,7 +883,8 @@ foreach ($replies as $r) {
                                                 <button type="button" class="btn btn-sm btn-light border fw-bold"
                                                     onclick="toggleEdit(<?= $c['id'] ?>)">Batal</button>
                                                 <button type="submit" class="btn btn-sm btn-primary fw-bold"
-                                                    style="background: var(--brand-gradient); border:none;">Simpan Perubahan</button>
+                                                    style="background: var(--brand-gradient); border:none; color:white;">Simpan
+                                                    Perubahan</button>
                                             </div>
                                         </form>
                                     <?php endif; ?>
@@ -948,7 +929,8 @@ foreach ($replies as $r) {
                                                 <button type="button" class="btn btn-sm btn-light border fw-bold"
                                                     onclick="toggleEdit(<?= $reply['id'] ?>)">Batal</button>
                                                 <button type="submit" class="btn btn-sm btn-primary fw-bold"
-                                                    style="background: var(--brand-gradient); border:none;">Simpan Perubahan</button>
+                                                    style="background: var(--brand-gradient); border:none; color:white;">Simpan
+                                                    Perubahan</button>
                                             </div>
                                         </form>
                                     <?php endif; ?>
@@ -975,43 +957,60 @@ foreach ($replies as $r) {
     </footer>
 
     <script>
+        const varianData = <?= $produk['varian'] ?>;
         let currentUnitPrice = <?= $selected_harga ?>;
+        let currentMaxStock = <?= $selected_stok ?>;
+
         const qtyInput = document.getElementById('qtyInput');
         const totalText = document.getElementById('total-price');
         const formQty = document.getElementById('formQty');
-        const formVariantLabel = document.getElementById('formVariantLabel');
+        const formVariantIndex = document.getElementById('formVariantIndex');
+        const btnBeli = document.getElementById('btn-beli');
+        const stockStatus = document.getElementById('stock-status');
 
-        function updatePrice(harga, btn) {
-            currentUnitPrice = harga;
-            document.getElementById('current-price').innerText = 'Rp ' + harga.toLocaleString('id-ID');
-            formVariantLabel.value = btn.getAttribute('data-label');
+        function updatePrice(index) {
+            const selected = varianData[index];
+            currentUnitPrice = selected.harga;
+            currentMaxStock = selected.stok;
+
+            document.getElementById('current-price').innerText = 'Rp ' + currentUnitPrice.toLocaleString('id-ID');
+            formVariantIndex.value = index;
+
             document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            document.getElementById('btnVar_' + index).classList.add('active');
+
+            if (currentMaxStock > 0) {
+                stockStatus.className = 'stock-badge stock-available';
+                stockStatus.innerHTML = '<i class="bi bi-check-circle-fill"></i> Tersedia (Sisa ' + currentMaxStock + ' Unit)';
+                btnBeli.disabled = false;
+                qtyInput.value = 1;
+            } else {
+                stockStatus.className = 'stock-badge stock-empty';
+                stockStatus.innerHTML = '<i class="bi bi-x-circle-fill"></i> Stok Varian Ini Habis';
+                btnBeli.disabled = true;
+                qtyInput.value = 0;
+            }
             calculate();
         }
 
         function updateQty(change) {
+            if (currentMaxStock === 0) return;
             let val = parseInt(qtyInput.value) + change;
-            const max = <?= $stok ?>;
-            if (max === 0) {
-                qtyInput.value = 0; formQty.value = 0; totalText.innerText = 'Rp 0';
-                return;
-            }
             if (val < 1) val = 1;
-            if (val > max) val = max;
+            if (val > currentMaxStock) val = currentMaxStock;
             qtyInput.value = val;
-            formQty.value = val;
             calculate();
         }
 
         function calculate() {
-            if (<?= $stok ?> === 0) return;
-            const total = currentUnitPrice * parseInt(qtyInput.value);
+            formQty.value = qtyInput.value;
+            const total = currentUnitPrice * parseInt(qtyInput.value || 0);
             totalText.innerText = 'Rp ' + total.toLocaleString('id-ID');
         }
 
-        if (<?= $stok ?> === 0) {
-            qtyInput.value = 0;
+        function updateFormValues() {
+            formQty.value = qtyInput.value || 1;
+            formVariantIndex.value = formVariantIndex.value || 0;
         }
 
         function toggleReply(id) {
