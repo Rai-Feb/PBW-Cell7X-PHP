@@ -2,8 +2,6 @@
 session_start();
 require_once '../config/koneksi.php';
 
-/** @var mysqli $conn */
-
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');
     exit;
@@ -13,13 +11,64 @@ $user_id = $_SESSION['user_id'];
 $error = '';
 $success = '';
 
-$cart = isset($_SESSION['keranjang']) ? $_SESSION['keranjang'] : [];
+$cart = [];
+$checkout_items = $_SESSION['checkout_items'] ?? [];
+
+// Memastikan hanya memproses barang yang di-check di keranjang
+if (isset($_SESSION['keranjang'])) {
+    foreach ($_SESSION['keranjang'] as $id => $qty) {
+        if (in_array($id, $checkout_items)) {
+            $cart[$id] = $qty;
+        }
+    }
+}
 
 if (empty($cart)) {
-    header('Location: katalog.php');
+    header('Location: keranjang.php');
     exit;
 }
 
+// Update Profil (Tersedia juga di modal checkout)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile') {
+    $nama = trim($_POST['nama']);
+    $username = trim($_POST['username']);
+
+    $stmt_get = mysqli_prepare($conn, "SELECT profile_picture FROM users WHERE id = ?");
+    mysqli_stmt_bind_param($stmt_get, "i", $user_id);
+    mysqli_stmt_execute($stmt_get);
+    $res = mysqli_stmt_get_result($stmt_get);
+    $current_user = mysqli_fetch_assoc($res);
+    $profile_picture = $current_user['profile_picture'] ?? '';
+
+    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
+        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+        $ext = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
+        if (in_array($ext, $allowed)) {
+            $new_filename = 'pp_' . time() . '_' . uniqid() . '.' . $ext;
+            $upload_path = '../uploads/profiles/';
+            if (!is_dir($upload_path))
+                mkdir($upload_path, 0777, true);
+            if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $upload_path . $new_filename)) {
+                if (!empty($profile_picture) && file_exists($upload_path . $profile_picture)) {
+                    unlink($upload_path . $profile_picture);
+                }
+                $profile_picture = $new_filename;
+            }
+        }
+    }
+
+    $stmt_update = mysqli_prepare($conn, "UPDATE users SET nama = ?, username = ?, profile_picture = ? WHERE id = ?");
+    mysqli_stmt_bind_param($stmt_update, "sssi", $nama, $username, $profile_picture, $user_id);
+    if (mysqli_stmt_execute($stmt_update)) {
+        $_SESSION['nama'] = $nama;
+        $_SESSION['username'] = $username;
+        $_SESSION['profile_picture'] = $profile_picture;
+    }
+    header("Location: checkout.php");
+    exit;
+}
+
+// Menghitung Total Harga & Pengecekan Stok Ulang
 $total = 0;
 foreach ($cart as $id => $qty) {
     $stmt = mysqli_prepare($conn, "SELECT harga_min, stok FROM products WHERE id = ?");
@@ -31,12 +80,13 @@ foreach ($cart as $id => $qty) {
     if ($product && $product['stok'] >= $qty) {
         $total += $product['harga_min'] * $qty;
     } else {
-        $error = "Stok produk tidak mencukupi untuk salah satu item.";
+        $error = "Stok produk tidak mencukupi untuk salah satu item yang dipilih.";
         break;
     }
 }
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
+// Pemrosesan Checkout (Ke Database)
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error) && !isset($_POST['action'])) {
     $metode_pembayaran = $_POST['payment_method'];
     $alamat_pengiriman = trim($_POST['alamat']);
 
@@ -46,14 +96,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
         mysqli_begin_transaction($conn);
         try {
             $status = 'pending';
-
             $stmt = mysqli_prepare($conn, "INSERT INTO orders (user_id, total_harga, alamat, status, payment_method, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
             mysqli_stmt_bind_param($stmt, "idsss", $user_id, $total, $alamat_pengiriman, $status, $metode_pembayaran);
             mysqli_stmt_execute($stmt);
             $order_id = mysqli_insert_id($conn);
 
             foreach ($cart as $id => $qty) {
-                $stmt2 = mysqli_prepare($conn, "SELECT harga_min, stok FROM products WHERE id = ? FOR UPDATE");
+                $stmt2 = mysqli_prepare($conn, "SELECT harga_min, stok, varian FROM products WHERE id = ? FOR UPDATE");
                 mysqli_stmt_bind_param($stmt2, "i", $id);
                 mysqli_stmt_execute($stmt2);
                 $res2 = mysqli_stmt_get_result($stmt2);
@@ -63,8 +112,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
                     throw new Exception("Stok produk id $id tidak cukup");
                 }
 
-                $stmt3 = mysqli_prepare($conn, "INSERT INTO order_details (order_id, product_id, jumlah, harga_satuan) VALUES (?, ?, ?, ?)");
-                mysqli_stmt_bind_param($stmt3, "iiid", $order_id, $id, $qty, $product['harga_min']);
+                $varian_json = json_decode($product['varian'] ?? '[]', true);
+                $varian_label = "Standard";
+                if ($varian_json && is_array($varian_json) && count($varian_json) > 0 && isset($varian_json[0]['ram'])) {
+                    $varian_label = $varian_json[0]['ram'] . '/' . $varian_json[0]['rom'] . ' GB';
+                }
+
+                $stmt3 = mysqli_prepare($conn, "INSERT INTO order_details (order_id, product_id, jumlah, harga_satuan, varian) VALUES (?, ?, ?, ?, ?)");
+                mysqli_stmt_bind_param($stmt3, "iiids", $order_id, $id, $qty, $product['harga_min'], $varian_label);
                 mysqli_stmt_execute($stmt3);
 
                 $stmt4 = mysqli_prepare($conn, "UPDATE products SET stok = stok - ? WHERE id = ?");
@@ -73,7 +128,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
             }
 
             mysqli_commit($conn);
-            $_SESSION['keranjang'] = [];
+
+            // Hapus HANYA item yang di-checkout dari session keranjang utama
+            foreach ($cart as $id => $qty) {
+                unset($_SESSION['keranjang'][$id]);
+            }
+            unset($_SESSION['checkout_items']);
+
             $success = "Pesanan berhasil dibuat! Order ID: #$order_id";
             header("refresh:2;url=pesanan.php");
         } catch (Exception $e) {
@@ -82,6 +143,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
         }
     }
 }
+
+$stmt_user = mysqli_prepare($conn, "SELECT nama, username, profile_picture FROM users WHERE id = ?");
+mysqli_stmt_bind_param($stmt_user, "i", $user_id);
+mysqli_stmt_execute($stmt_user);
+$active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -216,6 +282,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
             color: var(--brand-pink);
         }
 
+        .user-nav-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid var(--border-subtle);
+        }
+
         .dropdown-menu {
             border: none;
             border-radius: 16px;
@@ -228,11 +302,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
             border-radius: 8px;
             padding: 8px 15px;
             font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
         .dropdown-item:hover {
             background-color: #F8FAFC;
             color: var(--brand-purple);
+        }
+
+        .dropdown-item.text-danger:hover {
+            background-color: #FEF2F2;
+            color: #DC2626 !important;
         }
 
         .checkout-card {
@@ -321,23 +402,130 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
             color: white;
         }
 
+        .custom-modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .custom-modal-box {
+            background: var(--bg-card);
+            width: 90%;
+            max-width: 500px;
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transform: translateY(20px);
+            animation: modalFadeIn 0.3s forwards;
+            text-align: left;
+        }
+
+        @keyframes modalFadeIn {
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .custom-modal-title {
+            font-weight: 800;
+            color: var(--brand-navy);
+            font-size: 1.25rem;
+            margin-bottom: 10px;
+        }
+
+        .custom-modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .btn-modal-cancel {
+            flex: 1;
+            padding: 12px;
+            border-radius: 14px;
+            background: white;
+            border: 2px solid var(--border-subtle);
+            color: var(--text-muted);
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-modal-cancel:hover {
+            border-color: var(--text-dark);
+            color: var(--text-dark);
+        }
+
+        .btn-modal-confirm {
+            flex: 1;
+            padding: 12px;
+            border-radius: 14px;
+            background: var(--brand-gradient);
+            border: none;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: var(--glow-shadow);
+        }
+
+        .btn-modal-confirm:hover {
+            transform: translateY(-2px);
+        }
+
+        .settings-form-label {
+            font-weight: 700;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: block;
+            text-transform: uppercase;
+        }
+
+        .settings-input {
+            width: 100%;
+            padding: 12px 18px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            background: #F8FAFC;
+            font-weight: 500;
+            transition: all 0.3s;
+            outline: none;
+            margin-bottom: 20px;
+        }
+
+        .settings-input:focus {
+            border-color: var(--brand-purple);
+            box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
+            background: white;
+        }
+
+        .settings-avatar-preview {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--brand-pink);
+            margin-bottom: 15px;
+            box-shadow: var(--glow-shadow);
+        }
+
         footer {
             margin-top: auto;
             background: var(--brand-gradient);
             padding: 20px 0;
             text-align: center;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            color: white;
         }
     </style>
 </head>
@@ -345,9 +533,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
 <body>
 
     <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container d-lg-flex">
+        <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
-                <a class="brand-pill" href="index.php">
+                <a class="brand-pill" href="katalog.php">
                     <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
@@ -378,7 +566,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
                                 class="bi bi-receipt fs-5"></i> Pesanan</a></li>
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
-                                class="bi bi-chat-dots fs-5"></i> Chat Seller</a></li>
+                                class="bi bi-chat-dots fs-5"></i> Chat</a></li>
                 </ul>
             </div>
 
@@ -386,19 +574,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
                 <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0 w-100 justify-content-lg-end">
                     <div class="dropdown">
                         <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle fs-5 text-gradient"></i>
+                            <?php if (!empty($active_user['profile_picture'])): ?>
+                                <img src="../uploads/profiles/<?= htmlspecialchars($active_user['profile_picture']) ?>"
+                                    class="user-nav-avatar">
+                            <?php else: ?>
+                                <i class="bi bi-person-circle fs-5 text-gradient"></i>
+                            <?php endif; ?>
                             <span class="text-gradient">
-                                <?= htmlspecialchars($_SESSION['username'] ?? $_SESSION['nama'] ?? 'User') ?>
+                                <?= htmlspecialchars($active_user['username'] ?? $_SESSION['username'] ?? 'User') ?>
                             </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.php"><i
-                                        class="bi bi-gear me-2 text-muted"></i>Settings</a></li>
+                            <li>
+                                <button class="dropdown-item d-flex align-items-center" type="button"
+                                    onclick="openSettingsModal()">
+                                    <i class="bi bi-gear me-2 text-muted"></i>Settings
+                                </button>
+                            </li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
-                                        class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                            <li><a class="dropdown-item text-danger fw-bold d-flex align-items-center"
+                                    href="../auth/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                         </ul>
                     </div>
                 </div>
@@ -504,13 +701,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
     </div>
 
     <footer>
-        <div class="container text-center text-white small fw-medium opacity-75">
+        <div class="container text-center small fw-medium opacity-75">
             <p class="mb-0">&copy;
                 <?= date('Y') ?> 7CellX. Engineered with precision.
             </p>
         </div>
     </footer>
 
+    <?php if ($active_user): ?>
+        <div class="custom-modal-overlay" id="settingsModal">
+            <div class="custom-modal-box custom-settings-box">
+                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-subtle pb-3">
+                    <h3 class="custom-modal-title m-0"><i class="bi bi-gear-fill me-2"></i> Pengaturan Profil</h3>
+                    <button type="button" class="btn-close shadow-none" onclick="closeSettingsModal()"></button>
+                </div>
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="update_profile">
+                    <div class="text-center mb-4">
+                        <img id="previewPP"
+                            src="<?= !empty($active_user['profile_picture']) ? '../uploads/profiles/' . htmlspecialchars($active_user['profile_picture']) : 'https://via.placeholder.com/90/F8FAFC/9C27B0?text=PP' ?>"
+                            class="settings-avatar-preview">
+                        <label class="form-label d-block text-center" style="font-size: 0.8rem;">GANTI FOTO PROFIL</label>
+                        <input type="file" name="profile_picture" id="inputPP" class="form-control form-control-sm mx-auto"
+                            accept="image/*" style="max-width: 250px; font-size: 0.8rem;" onchange="previewImage(event)">
+                    </div>
+                    <label class="settings-form-label">NAMA LENGKAP</label>
+                    <input type="text" name="nama" class="settings-input"
+                        value="<?= htmlspecialchars($active_user['nama']) ?>" required>
+                    <label class="settings-form-label">USERNAME</label>
+                    <input type="text" name="username" class="settings-input"
+                        value="<?= htmlspecialchars($active_user['username']) ?>" required>
+                    <div class="custom-modal-actions mt-2">
+                        <button type="button" class="btn-modal-cancel" onclick="closeSettingsModal()">Batal</button>
+                        <button type="submit" class="btn-modal-confirm"><i class="bi bi-save-fill me-2"></i> Simpan
+                            Profil</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const totalTagihan = <?= $total ?>;
         const formCheckout = document.getElementById('formCheckout');
@@ -563,6 +794,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
                     }
                 }
             });
+        }
+
+        function openSettingsModal() { document.getElementById('settingsModal').style.display = 'flex'; }
+        function closeSettingsModal() { document.getElementById('settingsModal').style.display = 'none'; }
+        function previewImage(event) {
+            var reader = new FileReader();
+            reader.onload = function () { document.getElementById('previewPP').src = reader.result; }
+            if (event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
         }
     </script>
 </body>

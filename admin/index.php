@@ -2,6 +2,8 @@
 session_start();
 require_once '../config/koneksi.php';
 
+/** @var mysqli $conn */
+
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
     exit;
@@ -478,7 +480,7 @@ $pesanan_baru = mysqli_stmt_get_result($stmt_baru);
                             Pesanan</a></li>
                     <li class="nav-item"><a class="nav-link" href="chat.php"><i class="bi bi-chat-dots"></i> Chat</a>
                     </li>
-                    <li class="nav-item"><a class="nav-link" href="../admin/katalog.php" target="_blank"><i
+                    <li class="nav-item"><a class="nav-link" href="../admin/lihat_toko.php" target="_blank"><i
                                 class="bi bi-shop"></i> Lihat Toko</a></li>
                 </ul>
             </div>

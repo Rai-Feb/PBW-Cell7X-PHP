@@ -166,6 +166,17 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
             margin-top: 15px !important;
         }
 
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-weight: 500;
+        }
+
+        .dropdown-item:hover {
+            background-color: #F8FAFC;
+            color: var(--brand-purple);
+        }
+
         .main-content {
             padding: 40px 0;
             flex-grow: 1;
@@ -303,15 +314,13 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
             align-items: center;
             gap: 6px;
             transition: all 0.2s;
-        }
-
-        .btn-edit {
             background: #F4F7FE;
             color: var(--brand-purple);
             border: 1px solid var(--border-subtle);
+            cursor: pointer;
         }
 
-        .btn-edit:hover {
+        .btn-action:hover {
             background: var(--brand-purple);
             color: white;
             border-color: transparent;
@@ -343,7 +352,7 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left" style="flex: 1;">
                 <a class="brand-pill" href="index.php">
-                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
+                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
@@ -354,13 +363,16 @@ $products = mysqli_query($conn, "SELECT * FROM products ORDER BY id DESC");
             </div>
             <div class="collapse navbar-collapse nav-zone-center justify-content-center" id="navbarNav">
                 <ul class="navbar-nav align-items-center gap-2 mt-3 mt-lg-0">
-                    <li class="nav-item"><a class="nav-link" href="index.php"><i class="bi bi-speedometer2"></i>
-                            Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="produk.php"><i class="bi bi-box-seam"></i>
-                            Produk</a></li>
-                    <li class="nav-item"><a class="nav-link" href="pesanan.php"><i class="bi bi-receipt"></i>
-                            Pesanan</a></li>
-                    <li class="nav-item"><a class="nav-link" href="chat.php"><i class="bi bi-chat-dots"></i> Chat</a>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="index.php"><i
+                                class="bi bi-speedometer2"></i> Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link active d-flex align-items-center gap-2" href="produk.php"><i
+                                class="bi bi-box-seam"></i> Produk</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
+                                class="bi bi-receipt"></i> Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
+                                class="bi bi-chat-dots"></i> Chat</a></li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2"
+                            href="../admin/lihat_toko.php" target="_blank"><i class="bi bi-shop"></i> Lihat Toko</a>
                     </li>
                 </ul>
             </div>

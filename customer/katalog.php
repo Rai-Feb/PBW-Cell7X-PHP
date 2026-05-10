@@ -4,50 +4,74 @@ require_once '../config/koneksi.php';
 
 /** @var mysqli $conn */
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_profile' && isset($_SESSION['user_id'])) {
-    $nama = trim($_POST['nama']);
-    $username = trim($_POST['username']);
-    $user_id = $_SESSION['user_id'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_SESSION['user_id'])) {
     
-    $stmt_get = mysqli_prepare($conn, "SELECT profile_picture FROM users WHERE id = ?");
-    mysqli_stmt_bind_param($stmt_get, "i", $user_id);
-    mysqli_stmt_execute($stmt_get);
-    $res = mysqli_stmt_get_result($stmt_get);
-    $current_user = mysqli_fetch_assoc($res);
-    $profile_picture = $current_user['profile_picture'] ?? '';
-
-    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
-        $allowed = ['jpg', 'jpeg', 'png', 'webp'];
-        $ext = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
+    if ($_POST['action'] === 'update_profile') {
+        $nama = trim($_POST['nama']);
+        $username = trim($_POST['username']);
+        $user_id = $_SESSION['user_id'];
         
-        if (in_array($ext, $allowed)) {
-            $new_filename = 'pp_' . time() . '_' . uniqid() . '.' . $ext;
-            $upload_path = '../uploads/profiles/';
-            
-            if (!is_dir($upload_path)) {
-                mkdir($upload_path, 0777, true);
-            }
+        $stmt_get = mysqli_prepare($conn, "SELECT profile_picture FROM users WHERE id = ?");
+        mysqli_stmt_bind_param($stmt_get, "i", $user_id);
+        mysqli_stmt_execute($stmt_get);
+        $res = mysqli_stmt_get_result($stmt_get);
+        $current_user = mysqli_fetch_assoc($res);
+        $profile_picture = $current_user['profile_picture'] ?? '';
 
-            if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $upload_path . $new_filename)) {
-                if (!empty($profile_picture) && file_exists($upload_path . $profile_picture)) {
-                    unlink($upload_path . $profile_picture);
+        if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] == 0) {
+            $allowed = ['jpg', 'jpeg', 'png', 'webp'];
+            $ext = strtolower(pathinfo($_FILES['profile_picture']['name'], PATHINFO_EXTENSION));
+            
+            if (in_array($ext, $allowed)) {
+                $new_filename = 'pp_' . time() . '_' . uniqid() . '.' . $ext;
+                $upload_path = '../uploads/profiles/';
+                
+                if (!is_dir($upload_path)) {
+                    mkdir($upload_path, 0777, true);
                 }
-                $profile_picture = $new_filename;
+
+                if (move_uploaded_file($_FILES['profile_picture']['tmp_name'], $upload_path . $new_filename)) {
+                    if (!empty($profile_picture) && file_exists($upload_path . $profile_picture)) {
+                        unlink($upload_path . $profile_picture);
+                    }
+                    $profile_picture = $new_filename;
+                }
             }
         }
+
+        $stmt_update = mysqli_prepare($conn, "UPDATE users SET nama = ?, username = ?, profile_picture = ? WHERE id = ?");
+        mysqli_stmt_bind_param($stmt_update, "sssi", $nama, $username, $profile_picture, $user_id);
+        
+        if (mysqli_stmt_execute($stmt_update)) {
+            $_SESSION['nama'] = $nama;
+            $_SESSION['username'] = $username;
+            $_SESSION['profile_picture'] = $profile_picture;
+            $_SESSION['success_msg'] = "Profil berhasil diperbarui!";
+        }
+        header("Location: katalog.php");
+        exit;
     }
 
-    $stmt_update = mysqli_prepare($conn, "UPDATE users SET nama = ?, username = ?, profile_picture = ? WHERE id = ?");
-    mysqli_stmt_bind_param($stmt_update, "sssi", $nama, $username, $profile_picture, $user_id);
-    
-    if (mysqli_stmt_execute($stmt_update)) {
-        $_SESSION['nama'] = $nama;
-        $_SESSION['username'] = $username;
-        $_SESSION['profile_picture'] = $profile_picture;
-        $_SESSION['success_msg'] = "Profil berhasil diperbarui!";
+    if ($_POST['action'] === 'add_to_cart') {
+        $pid = (int)$_POST['product_id'];
+        $qty = (int)$_POST['qty'];
+
+        if (!isset($_SESSION['keranjang'])) {
+            $_SESSION['keranjang'] = [];
+        }
+
+        if (isset($_SESSION['keranjang'][$pid])) {
+            $_SESSION['keranjang'][$pid] += $qty;
+        } else {
+            $_SESSION['keranjang'][$pid] = $qty;
+        }
+
+        $_SESSION['success_msg'] = "Produk berhasil ditambahkan ke keranjang!";
+        
+        $qs = $_SERVER['QUERY_STRING'] ? '?' . $_SERVER['QUERY_STRING'] : '';
+        header("Location: katalog.php" . $qs);
+        exit;
     }
-    header("Location: katalog.php");
-    exit;
 }
 
 $products_per_page = 8;
@@ -423,10 +447,10 @@ if (isset($_SESSION['user_id'])) {
 <body>
 
     <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container d-lg-flex">
+        <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
                 <a class="brand-pill" href="katalog.php">
-                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img" onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
+                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img" onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
                 <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -616,7 +640,8 @@ if (isset($_SESSION['user_id'])) {
                                         <i class="bi bi-eye fs-5"></i>
                                     </a>
                                     
-                                    <form action="tambah_keranjang.php" method="POST" class="m-0 flex-grow-1" onsubmit="confirmAddToCart(event, this, '<?= htmlspecialchars($product['nama_barang'], ENT_QUOTES) ?>')">
+                                    <form action="" method="POST" class="m-0 flex-grow-1" onsubmit="confirmAddToCart(event, this, '<?= htmlspecialchars($product['nama_barang'], ENT_QUOTES) ?>')">
+                                        <input type="hidden" name="action" value="add_to_cart">
                                         <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
                                         <input type="hidden" name="qty" value="1">
                                         <button type="submit" class="btn-add-cart" <?= $stok == 0 ? 'disabled' : '' ?>>

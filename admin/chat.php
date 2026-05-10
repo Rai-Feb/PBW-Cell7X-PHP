@@ -1,7 +1,8 @@
 <?php
 session_start();
-/** @var mysqli $conn */
 require_once '../config/koneksi.php';
+
+/** @var mysqli $conn */
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
@@ -53,7 +54,6 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             overflow: hidden;
         }
 
-        /* NAVBAR */
         .navbar {
             background: var(--brand-gradient) !important;
             padding: 0.8rem 0;
@@ -61,6 +61,26 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             z-index: 100;
             flex-shrink: 0;
+        }
+
+        @media (min-width: 992px) {
+            .nav-zone-left {
+                flex: 1;
+                display: flex;
+                justify-content: flex-start;
+            }
+
+            .nav-zone-center {
+                flex: 2;
+                display: flex;
+                justify-content: center;
+            }
+
+            .nav-zone-right {
+                flex: 1;
+                display: flex;
+                justify-content: flex-end;
+            }
         }
 
         .brand-pill {
@@ -73,6 +93,11 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             text-decoration: none;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s;
+        }
+
+        .brand-pill:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
         }
 
         .brand-logo-img {
@@ -120,6 +145,11 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             text-decoration: none;
         }
 
+        .btn-white-nav:hover {
+            transform: translateY(-2px);
+            color: var(--brand-pink);
+        }
+
         .dropdown-menu {
             border: none;
             border-radius: 16px;
@@ -128,7 +158,17 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             margin-top: 15px !important;
         }
 
-        /* CHAT LAYOUT EKSKLUSIF ADMIN */
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-weight: 500;
+        }
+
+        .dropdown-item:hover {
+            background-color: #F8FAFC;
+            color: var(--brand-purple);
+        }
+
         .admin-chat-layout {
             display: flex;
             flex: 1;
@@ -232,7 +272,6 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             font-weight: 500;
         }
 
-        /* MAIN CHAT AREA */
         .chat-area {
             flex: 1;
             display: flex;
@@ -410,25 +449,31 @@ $selected_id = (int) ($_GET['id'] ?? 0);
 </head>
 
 <body>
-    <nav class="navbar navbar-expand-lg">
-        <div class="container-fluid px-4 d-lg-flex">
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container d-lg-flex px-4">
             <div class="nav-zone-left" style="flex: 1;">
                 <a class="brand-pill" href="index.php">
-                    <img src="../../assets/logo.png" alt="Logo" class="brand-logo-img"
+                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
-                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
+                <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
+                </button>
             </div>
             <div class="collapse navbar-collapse nav-zone-center justify-content-center" id="navbarNav">
-                <ul class="navbar-nav align-items-center gap-2">
-                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="index.php"><i
-                                class="bi bi-speedometer2"></i> Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="produk.php"><i
-                                class="bi bi-box-seam"></i> Produk</a></li>
-                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
-                                class="bi bi-receipt"></i> Pesanan</a></li>
-                    <li class="nav-item"><a class="nav-link active d-flex align-items-center gap-2" href="chat.php"><i
-                                class="bi bi-chat-dots"></i> Chat</a></li>
+                <ul class="navbar-nav align-items-center gap-2 mt-3 mt-lg-0">
+                    <li class="nav-item"><a class="nav-link" href="index.php"><i class="bi bi-speedometer2"></i>
+                            Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="produk.php"><i class="bi bi-box-seam"></i> Produk</a>
+                    </li>
+                    <li class="nav-item"><a class="nav-link" href="pesanan.php"><i class="bi bi-receipt"></i>
+                            Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="chat.php"><i class="bi bi-chat-dots"></i>
+                            Chat</a></li>
+                    <li class="nav-item"><a class="nav-link" href="../admin/lihat_toko.php" target="_blank"><i
+                                class="bi bi-shop"></i> Lihat Toko</a></li>
                 </ul>
             </div>
             <div class="collapse navbar-collapse nav-zone-right justify-content-end" id="navbarNavRight"
@@ -512,6 +557,7 @@ $selected_id = (int) ($_GET['id'] ?? 0);
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <?php if ($selected_id > 0): ?>
         <script>
             const chatMessages = document.getElementById('chatMessages');
