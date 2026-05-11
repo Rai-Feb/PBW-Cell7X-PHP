@@ -250,7 +250,7 @@ if (isset($_SESSION['user_id'])) {
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
                 <a class="brand-pill" href="katalog.php">
-                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img" onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
+                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img" onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
                 <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -286,7 +286,7 @@ if (isset($_SESSION['user_id'])) {
                         </li>
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2" href="chat.php">
-                                <i class="bi bi-chat-dots fs-5"></i> Chat Seller
+                                <i class="bi bi-chat-dots fs-5"></i> Chat 
                             </a>
                         </li>
                     <?php endif; ?>
@@ -489,7 +489,7 @@ if (isset($_SESSION['user_id'])) {
 
     <footer>
         <div class="container text-center small fw-medium opacity-75">
-            <p class="mb-0">&copy; <?= date('Y') ?> 7CellX. Engineered with precision.</p>
+            <p class="mb-0">&copy; <?= date('Y') ?> 7CellX</p>
         </div>
     </footer>
 

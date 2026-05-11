@@ -395,7 +395,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
                 <a class="brand-pill" href="katalog.php">
-                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
+                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
@@ -413,7 +413,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
                                 class="bi bi-receipt fs-5"></i> Pesanan</a></li>
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2 active" href="chat.php"><i
-                                class="bi bi-chat-dots fs-5"></i> Chat Seller</a></li>
+                                class="bi bi-chat-dots fs-5"></i> Chat</a></li>
                 </ul>
             </div>
             <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight">
@@ -447,7 +447,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         <div class="chat-header">
             <div class="avatar"><i class="bi bi-headset"></i></div>
             <div>
-                <h3>Customer Support</h3>
+                <h3>Admin 7CellX</h3>
                 <span class="status offline" id="adminStatus"><i class="bi bi-circle-fill"
                         style="font-size: 0.5rem;"></i> Menghubungkan...</span>
             </div>
@@ -455,8 +455,8 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 
         <div class="chat-messages" id="chatMessages"></div>
 
-        <form class="chat-input" id="chatForm">
-            <input type="file" id="imageInput" accept="image/*" class="d-none">
+        <form class="chat-input" id="chatForm" method="POST" enctype="multipart/form-data">
+            <input type="file" id="imageInput" name="image" accept="image/*" class="d-none">
             <button type="button" class="btn-attach" id="attachBtn"
                 onclick="document.getElementById('imageInput').click()" title="Lampirkan Gambar">
                 <i class="bi bi-paperclip"></i>

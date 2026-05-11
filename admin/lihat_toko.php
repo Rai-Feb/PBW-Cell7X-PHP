@@ -205,8 +205,8 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left" style="flex: 1;">
                 <a class="brand-pill" href="index.php">
-                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img" onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
-                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
+                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img" onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
                 <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                     <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
@@ -405,7 +405,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 
     <footer>
         <div class="container text-center small fw-medium opacity-75">
-            <p class="mb-0">&copy; <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.</p>
+            <p class="mb-0">&copy; <?= date('Y') ?> 7CellX</p>
         </div>
     </footer>
 

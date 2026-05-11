@@ -623,7 +623,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
                 <a class="brand-pill" href="katalog.php">
-                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
+                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
@@ -653,7 +653,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="pesanan.php"><i
                                 class="bi bi-receipt fs-5"></i> Pesanan</a></li>
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
-                                class="bi bi-chat-dots fs-5"></i> Chat Seller</a></li>
+                                class="bi bi-chat-dots fs-5"></i> Chat</a></li>
                 </ul>
             </div>
             <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight">
@@ -821,7 +821,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 
     <footer>
         <div class="container small fw-medium opacity-75">&copy;
-            <?= date('Y') ?> 7CellX. Engineered with precision.
+            <?= date('Y') ?> 7CellX
         </div>
     </footer>
 

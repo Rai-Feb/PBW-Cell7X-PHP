@@ -640,9 +640,9 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left" style="flex: 1;">
                 <a class="brand-pill" href="index.php">
-                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
+                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
-                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
+                    <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
                 <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse"
                     data-bs-target="#navbarNav">
@@ -775,7 +775,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             <div class="alert border-0 text-center rounded-4 py-4 mb-4"
                 style="background: rgba(156, 39, 176, 0.05); border: 1px dashed var(--brand-purple) !important;">
                 <i class="bi bi-info-circle-fill fs-3 mb-2 d-block" style="color: var(--brand-purple);"></i>
-                <p class="mb-0 fw-medium text-dark">Mode Admin: Anda hanya dapat melihat ulasan pelanggan di halaman
+                <p class="mb-0 fw-medium text-dark">Mode Admin: Hanya dapat melihat dan merespon ulasan pelanggan di halaman
                     ini.</p>
             </div>
 
@@ -831,7 +831,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
     <footer>
         <div class="container text-center small fw-medium opacity-75">
             <p class="mb-0">&copy;
-                <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.
+                <?= date('Y') ?> 7CellX
             </p>
         </div>
     </footer>

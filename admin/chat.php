@@ -417,9 +417,9 @@ $selected_id = (int) ($_GET['id'] ?? 0);
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container d-lg-flex px-4">
             <a class="brand-pill me-auto" href="index.php">
-                <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
+                <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
                     onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
-                <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
+                <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
             </a>
             <div class="collapse navbar-collapse justify-content-center" id="navbarNav">
                 <ul class="navbar-nav gap-2 mt-3 mt-lg-0">
@@ -488,8 +488,8 @@ $selected_id = (int) ($_GET['id'] ?? 0);
 
                 <div class="chat-messages" id="chatMessages"></div>
 
-                <form class="chat-input" id="chatForm">
-                    <input type="file" id="imageInput" accept="image/*" class="d-none">
+                <form class="chat-input" id="chatForm" method="POST" enctype="multipart/form-data">
+                    <input type="file" id="imageInput" name="image" accept="image/*" class="d-none">
                     <button type="button" class="btn-attach" id="attachBtn"
                         onclick="document.getElementById('imageInput').click()" title="Lampirkan Gambar">
                         <i class="bi bi-paperclip"></i>
