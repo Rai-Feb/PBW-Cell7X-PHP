@@ -3,7 +3,6 @@ session_start();
 /** @var mysqli $conn */
 require_once '../config/koneksi.php';
 
-// Jika sudah login, tendang ke halaman masing-masing
 if (isset($_SESSION['user_id'])) {
     if ($_SESSION['role'] === 'admin') {
         header("Location: ../admin/index.php");
@@ -17,7 +16,7 @@ if (isset($_POST['login'])) {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
 
-    // MENCEGAH SQL INJECTION DENGAN PREPARED STATEMENT
+    //Mencegah SQL Injeksi
     $stmt = mysqli_prepare($conn, "SELECT * FROM users WHERE email = ?");
     mysqli_stmt_bind_param($stmt, "s", $email);
     mysqli_stmt_execute($stmt);
