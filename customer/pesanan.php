@@ -1,8 +1,7 @@
 <?php
+// pesanan.php
 session_start();
 require_once '../config/koneksi.php';
-
-/** @var mysqli $conn */
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');
@@ -11,10 +10,10 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = (int) $_SESSION['user_id'];
 $user_email = '';
-$user_query = mysqli_query($conn, "SELECT email FROM users WHERE id = $user_id");
+$user_query = mysqli_query($conn, "SELECT email, nama, username, profile_picture FROM users WHERE id = $user_id");
 if ($user_query) {
-    $user_data = mysqli_fetch_assoc($user_query);
-    $user_email = $user_data['email'] ?? '';
+    $active_user = mysqli_fetch_assoc($user_query);
+    $user_email = $active_user['email'] ?? '';
 }
 
 $query = "
@@ -172,6 +171,14 @@ $status_config = [
             color: var(--brand-pink);
         }
 
+        .user-nav-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid var(--border-subtle);
+        }
+
         .dropdown-menu {
             border: none;
             border-radius: 16px;
@@ -234,8 +241,8 @@ $status_config = [
 
         .order-id span {
             background: var(--brand-gradient);
-            background-clip: text;
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -281,8 +288,8 @@ $status_config = [
             font-size: 1.5rem;
             font-weight: 800;
             background: var(--brand-gradient);
-            background-clip: text;
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -294,9 +301,9 @@ $status_config = [
         }
 
         .btn-action {
-            padding: 12px 24px;
+            padding: 10px 18px;
             border: none;
-            border-radius: 14px;
+            border-radius: 12px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s;
@@ -304,7 +311,7 @@ $status_config = [
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
         }
 
         .btn-primary {
@@ -343,6 +350,7 @@ $status_config = [
             font-size: 6rem;
             color: #E2E8F0;
             margin-bottom: 24px;
+            display: block;
         }
 
         footer {
@@ -350,6 +358,7 @@ $status_config = [
             background: var(--brand-gradient);
             padding: 20px 0;
             text-align: center;
+            color: white;
         }
 
         @media (max-width: 768px) {
@@ -370,10 +379,10 @@ $status_config = [
 <body>
 
     <nav class="navbar navbar-expand-lg sticky-top">
-        <div class="container d-lg-flex">
+        <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
                 <a class="brand-pill" href="index.php">
-                    <img src="../assets/logo.png" alt="Logo" class="brand-logo-img"
+                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
                 </a>
@@ -398,19 +407,22 @@ $status_config = [
                 <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0 w-100 justify-content-lg-end">
                     <div class="dropdown">
                         <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle fs-5 text-gradient"></i>
+                            <?php if (!empty($active_user['profile_picture'])): ?>
+                                <img src="../uploads/profiles/<?= htmlspecialchars($active_user['profile_picture']) ?>"
+                                    class="user-nav-avatar">
+                            <?php else: ?>
+                                <i class="bi bi-person-circle fs-5 text-gradient"></i>
+                            <?php endif; ?>
                             <span class="text-gradient">
-                                <?= htmlspecialchars($_SESSION['username'] ?? $_SESSION['nama'] ?? 'User') ?>
+                                <?= htmlspecialchars($active_user['username'] ?? $_SESSION['username'] ?? 'User') ?>
                             </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="profile.php"><i class="bi bi-gear me-2"></i>Settings</a>
-                            </li>
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
-                            <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
-                                        class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                            <li><a class="dropdown-item text-danger fw-bold d-flex align-items-center"
+                                    href="../auth/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                         </ul>
                     </div>
                 </div>
@@ -439,7 +451,7 @@ $status_config = [
                 <i class="bi bi-box2-heart"></i>
                 <h3 class="fw-bold" style="color: var(--brand-navy);">Belum Ada Histori Pesanan</h3>
                 <p class="text-muted mb-4">Anda belum melakukan transaksi apa pun. Yuk jelajahi katalog kami.</p>
-                <a href="katalog.php" class="btn-action btn-primary">
+                <a href="katalog.php" class="btn-action btn-primary" style="padding: 12px 24px;">
                     <i class="bi bi-search"></i> Cari Smartphone
                 </a>
             </div>
@@ -453,8 +465,7 @@ $status_config = [
                             <div class="order-id">Order <span>#
                                     <?= $order['id'] ?>
                                 </span></div>
-                            <div class="order-date">
-                                <i class="bi bi-calendar3 me-1"></i>
+                            <div class="order-date"><i class="bi bi-calendar3 me-1"></i>
                                 <?= date('d M Y, H:i', strtotime($order['created_at'])) ?>
                             </div>
                         </div>
@@ -502,13 +513,10 @@ $status_config = [
     </div>
 
     <footer>
-        <div class="container text-center text-white small fw-medium opacity-75">
-            <p class="mb-0">&copy;
-                <?= date('Y') ?> 7CellX. Engineered with precision.
-            </p>
+        <div class="container small fw-medium opacity-75">&copy;
+            <?= date('Y') ?> 7CellX. Engineered with precision.
         </div>
     </footer>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 

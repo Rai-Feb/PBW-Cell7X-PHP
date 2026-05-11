@@ -215,24 +215,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <?= htmlspecialchars($success) ?>
                 </div>
             <?php else: ?>
-                <form method="POST">
+                <form method="POST" autocomplete="off">
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-muted">NAMA LENGKAP</label>
-                        <input type="text" name="nama" class="form-control" placeholder="Masukkan nama Anda" required>
+                        <input type="text" name="nama" class="form-control" placeholder="Masukkan nama Anda" required
+                            autocomplete="off">
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-muted">EMAIL</label>
-                        <input type="email" name="email" class="form-control" placeholder="nama@email.com" required>
+                        <input type="email" name="email" class="form-control" placeholder="nama@email.com" required
+                            autocomplete="off">
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-bold text-muted">KATA SANDI</label>
                         <input type="password" name="password" class="form-control" placeholder="Minimal 6 karakter"
-                            required minlength="6">
+                            required minlength="6" autocomplete="new-password">
                     </div>
                     <div class="mb-4">
                         <label class="form-label small fw-bold text-muted">KONFIRMASI KATA SANDI</label>
                         <input type="password" name="confirm_password" class="form-control" placeholder="Ulangi kata sandi"
-                            required>
+                            required autocomplete="new-password">
                     </div>
 
                     <button type="submit" class="btn-auth mb-4">

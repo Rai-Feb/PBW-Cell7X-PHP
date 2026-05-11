@@ -16,7 +16,6 @@ $success = '';
 $cart = [];
 $checkout_items = $_SESSION['checkout_items'] ?? [];
 
-// Memastikan hanya memproses barang yang di-check di keranjang
 if (isset($_SESSION['keranjang'])) {
     foreach ($_SESSION['keranjang'] as $key => $qty) {
         if (in_array($key, $checkout_items)) {
@@ -30,13 +29,12 @@ if (empty($cart)) {
     exit;
 }
 
-// Menghitung Total Harga & Pengecekan Stok Ulang untuk Varian
 $total = 0;
 $items_data = [];
 
-// Kumpulkan ID unik untuk query
 $unique_pids = array_unique(array_map(function ($k) {
-    return explode('_', $k)[0]; }, array_keys($cart)));
+    return explode('_', $k)[0];
+}, array_keys($cart)));
 $products_data = [];
 
 if (!empty($unique_pids)) {
@@ -80,7 +78,6 @@ foreach ($cart as $key => $qty) {
     }
 }
 
-// Pemrosesan Checkout (Ke Database)
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
     $metode_pembayaran = $_POST['payment_method'];
     $alamat_pengiriman = trim($_POST['alamat']);
@@ -90,7 +87,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
     } else {
         mysqli_begin_transaction($conn);
         try {
-            $status = 'pending';
+            $status = ($metode_pembayaran === 'cod') ? 'pending' : 'paid';
+
             $stmt = mysqli_prepare($conn, "INSERT INTO orders (user_id, total_harga, alamat, status, payment_method, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
             mysqli_stmt_bind_param($stmt, "idsss", $user_id, $total, $alamat_pengiriman, $status, $metode_pembayaran);
             mysqli_stmt_execute($stmt);
@@ -113,7 +111,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
                     throw new Exception("Stok produk id $pid tidak cukup saat diproses");
                 }
 
-                // Kurangi stok di dalam JSON varian
                 $varian_json[$v_idx]['stok'] -= $qty;
                 $new_varian_json = json_encode($varian_json);
 
@@ -121,7 +118,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
                 mysqli_stmt_bind_param($stmt3, "iiids", $order_id, $pid, $qty, $item['harga_satuan'], $item['label_varian']);
                 mysqli_stmt_execute($stmt3);
 
-                // Update tabel products: kurangi stok total & update JSON variannya
                 $stmt4 = mysqli_prepare($conn, "UPDATE products SET stok = stok - ?, varian = ? WHERE id = ?");
                 mysqli_stmt_bind_param($stmt4, "isi", $qty, $new_varian_json, $pid);
                 mysqli_stmt_execute($stmt4);
@@ -129,7 +125,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && empty($error)) {
 
             mysqli_commit($conn);
 
-            // Hapus HANYA item yang di-checkout dari session keranjang utama
             foreach ($cart as $key => $qty) {
                 unset($_SESSION['keranjang'][$key]);
             }

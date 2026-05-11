@@ -1,4 +1,5 @@
 <?php
+// keranjang.php
 session_start();
 require_once '../config/koneksi.php';
 
@@ -10,7 +11,6 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = (int) $_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
     if (isset($_POST['update'])) {
         if (isset($_POST['qty']) && is_array($_POST['qty'])) {
             foreach ($_POST['qty'] as $key => $qty) {
@@ -51,7 +51,6 @@ $items = [];
 $total = 0;
 
 if (!empty($keranjang)) {
-    // [AUTO-HEAL] Perbaiki data keranjang yang rusak (tidak memiliki Index Varian)
     $healed_cart = [];
     $needs_healing = false;
     foreach ($keranjang as $key => $qty) {
@@ -69,7 +68,8 @@ if (!empty($keranjang)) {
     }
 
     $unique_pids = array_unique(array_map(function ($k) {
-        return explode('_', $k)[0]; }, array_keys($keranjang)));
+        return explode('_', $k)[0];
+    }, array_keys($keranjang)));
     $products_data = [];
 
     if (!empty($unique_pids)) {
@@ -265,7 +265,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         }
 
         .dropdown-item:hover {
-            background: #F8FAFC;
+            background-color: #F8FAFC;
             color: var(--brand-purple);
         }
 
@@ -507,21 +507,21 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             background: var(--brand-gradient);
             color: white;
             border: none;
-            padding: 16px 28px;
-            border-radius: 16px;
+            padding: 12px 20px;
+            border-radius: 14px;
             font-weight: 700;
             width: 100%;
             transition: all 0.3s;
-            font-size: 1.05rem;
+            font-size: 1rem;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             text-decoration: none;
         }
 
         .btn-primary:hover:not(:disabled) {
-            transform: translateY(-3px);
+            transform: translateY(-2px);
             box-shadow: var(--glow-shadow);
             color: white;
         }
@@ -535,17 +535,17 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             background: transparent;
             color: var(--text-muted);
             border: 2px solid var(--border-subtle);
-            padding: 16px 28px;
-            border-radius: 16px;
+            padding: 12px 20px;
+            border-radius: 14px;
             font-weight: 700;
             width: 100%;
             transition: all 0.3s;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             text-decoration: none;
-            margin-top: 15px;
+            margin-top: 12px;
         }
 
         .btn-outline:hover {
@@ -612,7 +612,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 </head>
 
 <body>
-
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
@@ -626,14 +625,10 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                     <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
                 </button>
             </div>
-
             <div class="collapse navbar-collapse nav-zone-center" id="navbarNav">
                 <ul class="navbar-nav align-items-center gap-3 mt-3 mt-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link d-flex align-items-center gap-2" href="katalog.php">
-                            <i class="bi bi-grid-fill fs-5"></i> Katalog
-                        </a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="katalog.php"><i
+                                class="bi bi-grid-fill fs-5"></i> Katalog</a></li>
                     <li class="nav-item">
                         <a class="nav-link d-flex align-items-center gap-2 position-relative active"
                             href="keranjang.php">
@@ -654,7 +649,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                                 class="bi bi-chat-dots fs-5"></i> Chat Seller</a></li>
                 </ul>
             </div>
-
             <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight">
                 <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0 w-100 justify-content-lg-end">
                     <div class="dropdown">
@@ -784,13 +778,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                                 </div>
                             </div>
                         <?php endforeach; ?>
-
-                        <div class="d-flex justify-content-end mt-4 pt-3 border-top border-subtle">
-                            <button type="submit" name="update" class="btn-outline"
-                                style="width: auto; padding: 12px 24px; margin-top: 0; display: none;" id="btnUpdateCart">
-                                <i class="bi bi-arrow-repeat"></i> Perbarui Keranjang
-                            </button>
-                        </div>
                     </div>
 
                     <div class="cart-summary">
@@ -807,10 +794,10 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                                 <?= number_format($total, 0, ',', '.') ?>
                             </span>
                         </div>
-                        <button type="submit" name="checkout" class="btn-primary mb-3" id="btn-checkout">
+                        <button type="submit" name="checkout" class="btn-primary" id="btn-checkout">
                             <i class="bi bi-lock-fill"></i> Checkout Sekarang
                         </button>
-                        <a href="katalog.php" class="btn-outline" style="margin-top: 0;">
+                        <a href="katalog.php" class="btn-outline">
                             <i class="bi bi-arrow-left"></i> Lanjut Belanja
                         </a>
                     </div>
@@ -825,8 +812,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
     </div>
 
     <footer>
-        <div class="container small fw-medium opacity-75">
-            &copy;
+        <div class="container small fw-medium opacity-75">&copy;
             <?= date('Y') ?> 7CellX. Engineered with precision.
         </div>
     </footer>
@@ -860,30 +846,22 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         }
 
         function calculateSummary() {
-            let totalBayar = 0;
-            let totalItem = 0;
-            const checkboxes = document.querySelectorAll('.item-check:checked');
-
-            checkboxes.forEach(cb => {
+            let totalBayar = 0; let totalItem = 0;
+            document.querySelectorAll('.item-check:checked').forEach(cb => {
                 totalBayar += parseInt(cb.getAttribute('data-price'));
                 totalItem += 1;
             });
-
             const summaryItem = document.getElementById('summary-total-item');
             const summaryPrice = document.getElementById('summary-total-price');
             const btnCheckout = document.getElementById('btn-checkout');
-
             if (summaryItem) summaryItem.innerText = totalItem + ' Produk';
             if (summaryPrice) summaryPrice.innerText = 'Rp ' + totalBayar.toLocaleString('id-ID');
             if (btnCheckout) btnCheckout.disabled = totalItem === 0;
         }
 
         function toggleSelectAll(master) {
-            document.querySelectorAll('.item-check').forEach(cb => {
-                cb.checked = master.checked;
-            });
-            calculateSummary();
-            saveCheckedState();
+            document.querySelectorAll('.item-check').forEach(cb => cb.checked = master.checked);
+            calculateSummary(); saveCheckedState();
         }
 
         function saveCheckedState() {
@@ -893,25 +871,22 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 
         document.querySelectorAll('.item-check').forEach(cb => {
             cb.addEventListener('change', () => {
-                const totalChecks = document.querySelectorAll('.item-check').length;
-                const checkedCount = document.querySelectorAll('.item-check:checked').length;
-                const selectAllCb = document.getElementById('selectAll');
-                if (selectAllCb) selectAllCb.checked = (totalChecks === checkedCount);
-                calculateSummary();
-                saveCheckedState();
+                const total = document.querySelectorAll('.item-check').length;
+                const checked = document.querySelectorAll('.item-check:checked').length;
+                const selectAll = document.getElementById('selectAll');
+                if (selectAll) selectAll.checked = (total === checked);
+                calculateSummary(); saveCheckedState();
             });
         });
 
         window.addEventListener('DOMContentLoaded', () => {
             const checked = JSON.parse(sessionStorage.getItem('cartCheckedItems'));
             if (checked && document.querySelectorAll('.item-check').length > 0) {
-                document.querySelectorAll('.item-check').forEach(cb => {
-                    cb.checked = checked.includes(cb.value);
-                });
-                const totalChecks = document.querySelectorAll('.item-check').length;
-                const checkedCount = document.querySelectorAll('.item-check:checked').length;
-                const selectAllCb = document.getElementById('selectAll');
-                if (selectAllCb) selectAllCb.checked = (totalChecks === checkedCount && totalChecks > 0);
+                document.querySelectorAll('.item-check').forEach(cb => cb.checked = checked.includes(cb.value));
+                const total = document.querySelectorAll('.item-check').length;
+                const cCount = document.querySelectorAll('.item-check:checked').length;
+                const selectAll = document.getElementById('selectAll');
+                if (selectAll) selectAll.checked = (total === cCount && total > 0);
             }
             calculateSummary();
         });

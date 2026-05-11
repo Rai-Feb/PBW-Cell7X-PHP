@@ -87,7 +87,6 @@ if (isset($_POST['login'])) {
             overflow: hidden;
         }
 
-        /* Orbs Latar Belakang */
         .bg-orb-1 {
             position: absolute;
             top: -10%;
@@ -190,8 +189,8 @@ if (isset($_POST['login'])) {
     <div class="container d-flex justify-content-center">
         <div class="auth-card">
             <div class="text-center mb-4">
-                <a href="../customer/index.php" class="text-decoration-none d-inline-block mb-3">
-                    <img src="../assets/logo.png" alt="Logo" style="height: 50px;"
+                <a href="../customer/katalog.php" class="text-decoration-none d-inline-block mb-3">
+                    <img src="../assets/img/logo.png" alt="Logo" style="height: 50px;"
                         onerror="this.src='https://via.placeholder.com/50x50/FFFFFF/E91E63?text=7C'">
                 </a>
                 <h1 class="brand-text d-block">Masuk ke 7CellX</h1>
@@ -205,18 +204,18 @@ if (isset($_POST['login'])) {
                 </div>
             <?php endif; ?>
 
-            <form method="POST">
+            <form method="POST" autocomplete="off">
                 <div class="mb-3">
                     <label class="form-label small fw-bold text-muted">EMAIL</label>
                     <input type="email" name="email" class="form-control" placeholder="nama@email.com" required
-                        autofocus>
+                        autofocus autocomplete="off">
                 </div>
                 <div class="mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-1">
                         <label class="form-label small fw-bold text-muted mb-0">KATA SANDI</label>
                     </div>
                     <input type="password" name="password" class="form-control" placeholder="Masukkan kata sandi"
-                        required>
+                        required autocomplete="new-password">
                 </div>
 
                 <button type="submit" name="login" class="btn-auth mb-4">

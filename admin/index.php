@@ -673,43 +673,41 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                                 class="bi bi-receipt"></i> Pesanan</a></li>
                     <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="chat.php"><i
                                 class="bi bi-chat-dots"></i> Chat</a></li>
-                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2"
-                            href="../customer/katalog.php" target="_blank"><i class="bi bi-shop"></i> Lihat Toko</a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link d-flex align-items-center gap-2" href="lihat_toko.php"><i
+                                class="bi bi-shop"></i> Lihat Toko</a></li>
                 </ul>
             </div>
-            <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight" style="flex: 1;">
-                <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0 w-100 justify-content-lg-end">
-                    <div class="dropdown">
-                        <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <?php if (!empty($active_user['profile_picture'])): ?>
-                                <img src="../uploads/profiles/<?= htmlspecialchars($active_user['profile_picture']) ?>"
-                                    class="user-nav-avatar">
-                            <?php else: ?>
-                                <i class="bi bi-person-circle fs-5 text-gradient"></i>
-                            <?php endif; ?>
-                            <span class="text-gradient">
-                                <?= htmlspecialchars($active_user['username'] ?? $_SESSION['username'] ?? 'Admin') ?>
-                            </span>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li>
-                                <button class="dropdown-item d-flex align-items-center" type="button"
-                                    onclick="openSettingsModal()">
-                                    <i class="bi bi-gear me-2 text-muted"></i>Settings
-                                </button>
-                            </li>
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
-                            <li>
-                                <a class="dropdown-item text-danger fw-bold d-flex align-items-center"
-                                    href="../auth/logout.php">
-                                    <i class="bi bi-box-arrow-right me-2"></i>Logout
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
+            <div class="collapse navbar-collapse nav-zone-right justify-content-end" id="navbarNavRight"
+                style="flex: 1;">
+                <div class="dropdown">
+                    <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <?php if (!empty($active_user['profile_picture'])): ?>
+                            <img src="../uploads/profiles/<?= htmlspecialchars($active_user['profile_picture']) ?>"
+                                class="user-nav-avatar">
+                        <?php else: ?>
+                            <i class="bi bi-person-circle fs-5 text-gradient"></i>
+                        <?php endif; ?>
+                        <span class="text-gradient">
+                            <?= htmlspecialchars($active_user['username'] ?? $_SESSION['username'] ?? 'Admin') ?>
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <button class="dropdown-item d-flex align-items-center" type="button"
+                                onclick="openSettingsModal()">
+                                <i class="bi bi-gear me-2 text-muted"></i>Settings
+                            </button>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li>
+                            <a class="dropdown-item text-danger fw-bold d-flex align-items-center"
+                                href="../auth/logout.php">
+                                <i class="bi bi-box-arrow-right me-2"></i>Logout
+                            </a>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </div>
