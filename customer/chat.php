@@ -1,5 +1,4 @@
 <?php
-// chat.php
 session_start();
 require_once '../config/koneksi.php';
 
@@ -38,7 +37,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             --text-muted: #64748B;
             --border-subtle: #E2E8F0;
             --brand-gradient: linear-gradient(135deg, #E91E63 0%, #9C27B0 50%, #1A237E 100%);
-            --glow-shadow: 0 15px 35px rgba(156, 39, 176, 0.2);
             --card-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
         }
 
@@ -142,13 +140,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             display: flex;
             align-items: center;
             gap: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
             text-decoration: none;
-        }
-
-        .btn-white-nav:hover {
-            transform: translateY(-2px);
-            color: var(--brand-pink);
         }
 
         .user-nav-avatar {
@@ -171,17 +163,11 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             border-radius: 8px;
             padding: 8px 15px;
             font-weight: 500;
-            cursor: pointer;
         }
 
         .dropdown-item:hover {
             background-color: #F8FAFC;
             color: var(--brand-purple);
-        }
-
-        .dropdown-item.text-danger:hover {
-            background-color: #FEF2F2;
-            color: #DC2626 !important;
         }
 
         .chat-container {
@@ -205,7 +191,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             display: flex;
             align-items: center;
             gap: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
         }
 
         .chat-header .avatar {
@@ -235,7 +220,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             align-items: center;
             gap: 6px;
             font-weight: 600;
-            margin-top: 4px;
         }
 
         .chat-header .status.online {
@@ -271,7 +255,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             align-self: flex-start;
             border-radius: 20px 20px 20px 4px;
             border: 1px solid var(--border-subtle);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
         }
 
         .message.customer {
@@ -279,13 +262,22 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             color: white;
             align-self: flex-end;
             border-radius: 20px 20px 4px 20px;
-            box-shadow: 0 4px 15px rgba(156, 39, 176, 0.2);
         }
 
-        .message .time {
-            font-size: 0.7rem;
+        .msg-footer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             margin-top: 6px;
-            display: block;
+            justify-content: flex-end;
+        }
+
+        .message.admin .msg-footer {
+            justify-content: flex-start;
+        }
+
+        .time {
+            font-size: 0.7rem;
             font-weight: 600;
         }
 
@@ -297,11 +289,28 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             color: rgba(255, 255, 255, 0.8);
         }
 
+        .btn-del-msg {
+            background: none;
+            border: none;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.3s;
+            padding: 0;
+        }
+
+        .message.customer .btn-del-msg {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .message.customer .btn-del-msg:hover {
+            color: white;
+        }
+
         .chat-image {
             max-width: 250px;
             width: 100%;
             border-radius: 12px;
-            margin-top: 8px;
+            margin-bottom: 8px;
             cursor: pointer;
             border: 2px solid rgba(255, 255, 255, 0.2);
             transition: transform 0.2s;
@@ -309,23 +318,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 
         .chat-image:hover {
             transform: scale(1.02);
-        }
-
-        .empty-chat {
-            text-align: center;
-            color: var(--text-muted);
-            margin: auto;
-        }
-
-        .empty-chat i {
-            font-size: 4rem;
-            color: #CBD5E1;
-            margin-bottom: 10px;
-            display: block;
-        }
-
-        .empty-chat p {
-            font-weight: 600;
         }
 
         .chat-input {
@@ -341,13 +333,13 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             background: #F1F5F9;
             color: var(--text-muted);
             border: 1px solid var(--border-subtle);
-            width: 50px;
-            height: 50px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             cursor: pointer;
             transition: all 0.3s;
         }
@@ -365,25 +357,17 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 
         .chat-input input[type="text"] {
             flex: 1;
-            padding: 15px 25px;
+            padding: 12px 20px;
             border: 1px solid var(--border-subtle);
             border-radius: 30px;
-            font-size: 1rem;
             outline: none;
             background: #F8FAFC;
             font-weight: 500;
-            transition: all 0.3s;
-        }
-
-        .chat-input input[type="text"]:focus {
-            background: #FFFFFF;
-            border-color: var(--brand-purple);
-            box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
         }
 
         .chat-input button[type="submit"] {
-            width: 55px;
-            height: 55px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             background: var(--brand-gradient);
             color: white;
@@ -391,22 +375,8 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: var(--glow-shadow);
-        }
-
-        .chat-input button[type="submit"]:hover {
-            transform: scale(1.05);
-        }
-
-        footer {
-            margin-top: auto;
-            background: var(--brand-gradient);
-            padding: 15px 0;
-            text-align: center;
-            color: white;
         }
 
         @media (max-width: 768px) {
@@ -416,10 +386,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                 border: none;
                 border-top: 1px solid var(--border-subtle);
             }
-
-            .chat-image {
-                max-width: 200px;
-            }
         }
     </style>
 </head>
@@ -428,7 +394,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
-                <a class="brand-pill" href="index.php">
+                <a class="brand-pill" href="katalog.php">
                     <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
@@ -461,7 +427,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                                 <i class="bi bi-person-circle fs-5 text-gradient"></i>
                             <?php endif; ?>
                             <span class="text-gradient">
-                                <?= htmlspecialchars($active_user['username'] ?? $_SESSION['username'] ?? 'User') ?>
+                                <?= htmlspecialchars($active_user['username'] ?? 'User') ?>
                             </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
@@ -487,12 +453,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             </div>
         </div>
 
-        <div class="chat-messages" id="chatMessages">
-            <div class="empty-chat">
-                <i class="bi bi-chat-dots"></i>
-                <p>Mulai percakapan dengan admin 7CellX</p>
-            </div>
-        </div>
+        <div class="chat-messages" id="chatMessages"></div>
 
         <form class="chat-input" id="chatForm">
             <input type="file" id="imageInput" accept="image/*" class="d-none">
@@ -505,12 +466,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             <button type="submit" title="Kirim Pesan"><i class="bi bi-send-fill"></i></button>
         </form>
     </div>
-
-    <footer>
-        <div class="container text-center text-white small fw-medium opacity-75">&copy;
-            <?= date('Y') ?> 7CellX. Engineered with precision.
-        </div>
-    </footer>
 
     <script>
         const chatMessages = document.getElementById('chatMessages');
@@ -526,7 +481,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         imageInput.addEventListener('change', function () {
             if (this.files.length > 0) {
                 attachBtn.classList.add('has-file');
-                msgInput.placeholder = "Gambar dilampirkan. Tambahkan teks (opsional)...";
+                msgInput.placeholder = "Gambar siap dikirim...";
             } else {
                 attachBtn.classList.remove('has-file');
                 msgInput.placeholder = "Ketik pesan...";
@@ -535,7 +490,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 
         function formatTime(dateStr) {
             const date = new Date(dateStr);
-            return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+            return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
 
         function loadChat() {
@@ -544,26 +499,35 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                 .then(data => {
                     if (data.length !== lastCount) {
                         chatMessages.innerHTML = '';
-                        if (data.length === 0) {
-                            chatMessages.innerHTML = '<div class="empty-chat"><i class="bi bi-chat-dots"></i><p>Mulai percakapan dengan admin 7CellX</p></div>';
-                        } else {
-                            data.forEach(msg => {
-                                const div = document.createElement('div');
-                                div.className = 'message ' + msg.sender_role;
+                        data.forEach(msg => {
+                            const div = document.createElement('div');
+                            div.className = 'message ' + msg.sender_role;
 
-                                let content = msg.message;
-                                if (msg.attachment) {
-                                    content += `<div class="mt-2"><img src="../uploads/chat/${msg.attachment}" class="chat-image" onclick="window.open(this.src, '_blank')"></div>`;
-                                }
+                            let content = '';
+                            if (msg.attachment) content += `<img src="../uploads/chat/${msg.attachment}" class="chat-image" onclick="window.open(this.src, '_blank')"><br>`;
+                            if (msg.message) content += msg.message;
 
-                                div.innerHTML = content + '<span class="time">' + formatTime(msg.created_at) + '</span>';
-                                chatMessages.appendChild(div);
-                            });
-                        }
+                            let footer = `<div class="msg-footer">`;
+                            if (msg.sender_role === 'customer') {
+                                footer += `<button class="btn-del-msg" onclick="deleteMsg(${msg.id})" title="Hapus Pesan"><i class="bi bi-trash3-fill"></i></button>`;
+                            }
+                            footer += `<span class="time">${formatTime(msg.created_at)}</span></div>`;
+
+                            div.innerHTML = content + footer;
+                            chatMessages.appendChild(div);
+                        });
                         chatMessages.scrollTop = chatMessages.scrollHeight;
                         lastCount = data.length;
                     }
-                }).catch(err => console.error("Error loading chat:", err));
+                }).catch(err => console.error(err));
+        }
+
+        function deleteMsg(id) {
+            if (!confirm('Hapus pesan ini secara permanen?')) return;
+            const fd = new FormData();
+            fd.append('msg_id', id);
+            fetch('../chat_api.php?action=delete', { method: 'POST', body: fd })
+                .then(() => { lastCount = 0; loadChat(); });
         }
 
         function checkAdminStatus() {
@@ -575,16 +539,13 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                         adminStatus.innerHTML = '<i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i> Online';
                     } else {
                         adminStatus.className = 'status offline';
-                        adminStatus.innerHTML = '<i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i> Offline';
+                        let last = data.last_seen ? formatTime(data.last_seen) : '-';
+                        adminStatus.innerHTML = '<i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i> Terakhir aktif: ' + last;
                     }
                 }).catch(() => {
                     adminStatus.className = 'status offline';
                     adminStatus.innerHTML = '<i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i> Offline';
                 });
-        }
-
-        function updatePresence() {
-            fetch('../chat_api.php?action=status&active=' + isActive).catch(() => { });
         }
 
         chatForm.addEventListener('submit', e => {
@@ -601,7 +562,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             msgInput.value = '';
             imageInput.value = '';
             attachBtn.classList.remove('has-file');
-            msgInput.placeholder = "Mengirim...";
             msgInput.disabled = true;
 
             fetch('../chat_api.php?action=send', {
@@ -609,25 +569,16 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                 body: formData
             }).then(() => {
                 msgInput.disabled = false;
-                msgInput.placeholder = "Ketik pesan...";
                 msgInput.focus();
+                lastCount = 0;
                 loadChat();
-            }).catch(err => {
-                msgInput.disabled = false;
-                msgInput.placeholder = "Gagal kirim, coba lagi...";
-                console.error(err);
             });
         });
 
-        document.addEventListener('visibilitychange', () => {
-            isActive = document.hidden ? 0 : 1;
-            updatePresence();
-        });
-
-        loadChat(); checkAdminStatus(); updatePresence();
+        loadChat(); checkAdminStatus();
         setInterval(loadChat, 3000);
-        setInterval(checkAdminStatus, 5000);
-        setInterval(updatePresence, 10000);
+        setInterval(checkAdminStatus, 10000);
+        setInterval(() => fetch('../chat_api.php?action=status&active=1'), 15000);
     </script>
 </body>
 

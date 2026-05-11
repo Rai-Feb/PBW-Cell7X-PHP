@@ -1,9 +1,8 @@
 <?php
-// pesanan.php
 session_start();
 require_once '../config/koneksi.php';
 
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'customer') {
     header('Location: ../auth/login.php');
     exit;
 }
@@ -191,6 +190,13 @@ $status_config = [
             border-radius: 8px;
             padding: 8px 15px;
             font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background-color: #F8FAFC;
+            color: var(--brand-purple);
         }
 
         .page-header {
@@ -211,9 +217,9 @@ $status_config = [
 
         .order-card {
             background: var(--bg-card);
-            border-radius: 24px;
-            padding: 32px;
-            margin-bottom: 24px;
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 20px;
             box-shadow: var(--card-shadow);
             border: 1px solid var(--border-subtle);
             transition: all 0.3s;
@@ -222,19 +228,20 @@ $status_config = [
         .order-card:hover {
             border-color: var(--brand-purple);
             box-shadow: 0 12px 35px rgba(156, 39, 176, 0.08);
+            transform: translateY(-2px);
         }
 
         .order-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-bottom: 20px;
+            padding-bottom: 16px;
             border-bottom: 1px dashed var(--border-subtle);
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .order-id {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 800;
             color: var(--text-dark);
         }
@@ -248,16 +255,16 @@ $status_config = [
 
         .order-date {
             color: var(--text-muted);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 500;
-            margin-top: 5px;
+            margin-top: 4px;
         }
 
         .status-badge {
-            padding: 8px 18px;
-            border-radius: 20px;
+            padding: 6px 14px;
+            border-radius: 12px;
             font-weight: 800;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -265,14 +272,14 @@ $status_config = [
         .order-body {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr;
-            gap: 24px;
-            margin-bottom: 24px;
+            gap: 20px;
+            margin-bottom: 20px;
         }
 
         .order-block h4 {
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             color: var(--text-muted);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -281,11 +288,12 @@ $status_config = [
         .order-block p {
             color: var(--text-dark);
             font-weight: 700;
-            font-size: 1.05rem;
+            font-size: 0.95rem;
+            margin: 0;
         }
 
         .order-total p {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             font-weight: 800;
             background: var(--brand-gradient);
             -webkit-background-clip: text;
@@ -295,23 +303,24 @@ $status_config = [
 
         .order-actions {
             display: flex;
-            gap: 12px;
-            padding-top: 24px;
+            gap: 10px;
+            padding-top: 16px;
             border-top: 1px solid #F1F5F9;
         }
 
+        /* PERBAIKAN: Tombol Aksi Diperkecil */
         .btn-action {
-            padding: 10px 18px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 12px;
+            border-radius: 10px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
+            gap: 6px;
+            font-size: 0.85rem;
         }
 
         .btn-primary {
@@ -381,7 +390,7 @@ $status_config = [
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
-                <a class="brand-pill" href="index.php">
+                <a class="brand-pill" href="katalog.php">
                     <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
                         onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX</span>
@@ -451,64 +460,66 @@ $status_config = [
                 <i class="bi bi-box2-heart"></i>
                 <h3 class="fw-bold" style="color: var(--brand-navy);">Belum Ada Histori Pesanan</h3>
                 <p class="text-muted mb-4">Anda belum melakukan transaksi apa pun. Yuk jelajahi katalog kami.</p>
-                <a href="katalog.php" class="btn-action btn-primary" style="padding: 12px 24px;">
+                <a href="katalog.php" class="btn-action btn-primary" style="padding: 10px 20px;">
                     <i class="bi bi-search"></i> Cari Smartphone
                 </a>
             </div>
         <?php else: ?>
-            <?php foreach ($orders as $order):
-                $status = $status_config[$order['status']] ?? ['label' => $order['status'], 'color' => '#64748B', 'bg' => '#F1F5F9'];
-                ?>
-                <div class="order-card">
-                    <div class="order-header">
-                        <div>
-                            <div class="order-id">Order <span>#
-                                    <?= $order['id'] ?>
-                                </span></div>
-                            <div class="order-date"><i class="bi bi-calendar3 me-1"></i>
-                                <?= date('d M Y, H:i', strtotime($order['created_at'])) ?>
+            <div class="mx-auto" style="max-width: 800px;">
+                <?php foreach ($orders as $order):
+                    $status = $status_config[$order['status']] ?? ['label' => $order['status'], 'color' => '#64748B', 'bg' => '#F1F5F9'];
+                    ?>
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div>
+                                <div class="order-id">Order <span>#
+                                        <?= $order['id'] ?>
+                                    </span></div>
+                                <div class="order-date"><i class="bi bi-calendar3 me-1"></i>
+                                    <?= date('d M Y, H:i', strtotime($order['created_at'])) ?>
+                                </div>
+                            </div>
+                            <div class="status-badge" style="background: <?= $status['bg'] ?>; color: <?= $status['color'] ?>;">
+                                <i class="bi bi-circle-fill me-1" style="font-size:0.5rem;"></i>
+                                <?= $status['label'] ?>
                             </div>
                         </div>
-                        <div class="status-badge" style="background: <?= $status['bg'] ?>; color: <?= $status['color'] ?>;">
-                            <i class="bi bi-circle-fill me-1" style="font-size:0.6rem;"></i>
-                            <?= $status['label'] ?>
-                        </div>
-                    </div>
 
-                    <div class="order-body">
-                        <div class="order-block">
-                            <h4>Rincian Produk</h4>
-                            <p>
-                                <?= htmlspecialchars($order['product_names'] ?? '-') ?>
-                            </p>
+                        <div class="order-body">
+                            <div class="order-block">
+                                <h4>Rincian Produk</h4>
+                                <p>
+                                    <?= htmlspecialchars($order['product_names'] ?? '-') ?>
+                                </p>
+                            </div>
+                            <div class="order-block">
+                                <h4>Metode Bayar</h4>
+                                <p>
+                                    <?= strtoupper(str_replace('_', ' ', $order['payment_method'] ?? '-')) ?>
+                                </p>
+                            </div>
+                            <div class="order-block order-total">
+                                <h4>Total Dibayar</h4>
+                                <p>Rp
+                                    <?= number_format($order['total_harga'], 0, ',', '.') ?>
+                                </p>
+                            </div>
                         </div>
-                        <div class="order-block">
-                            <h4>Metode Bayar</h4>
-                            <p>
-                                <?= strtoupper(str_replace('_', ' ', $order['payment_method'] ?? '-')) ?>
-                            </p>
-                        </div>
-                        <div class="order-block order-total">
-                            <h4>Total Dibayar</h4>
-                            <p>Rp
-                                <?= number_format($order['total_harga'], 0, ',', '.') ?>
-                            </p>
-                        </div>
-                    </div>
 
-                    <div class="order-actions">
-                        <a href="invoice.php?id=<?= $order['id'] ?>" class="btn-action btn-primary">
-                            <i class="bi bi-receipt"></i> Lihat Invoice
-                        </a>
-                        <?php if ($order['status'] == 'pending'): ?>
-                            <a href="cancel_order.php?id=<?= $order['id'] ?>" class="btn-action btn-outline-danger"
-                                onclick="return confirm('Apakah Anda yakin ingin membatalkan pesanan ini secara permanen?')">
-                                <i class="bi bi-x-circle"></i> Batalkan
+                        <div class="order-actions">
+                            <a href="invoice.php?id=<?= $order['id'] ?>" class="btn-action btn-primary">
+                                <i class="bi bi-receipt"></i> Lihat Invoice
                             </a>
-                        <?php endif; ?>
+                            <?php if ($order['status'] == 'pending'): ?>
+                                <a href="cancel_order.php?id=<?= $order['id'] ?>" class="btn-action btn-outline-danger"
+                                    onclick="return confirm('Apakah Anda yakin ingin membatalkan pesanan ini secara permanen?')">
+                                    <i class="bi bi-x-circle"></i> Batalkan
+                                </a>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
     </div>
 

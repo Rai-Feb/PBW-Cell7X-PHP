@@ -32,7 +32,6 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             --text-muted: #64748B;
             --border-subtle: #E2E8F0;
             --brand-gradient: linear-gradient(135deg, #E91E63 0%, #9C27B0 50%, #1A237E 100%);
-            --glow-shadow: 0 15px 35px rgba(156, 39, 176, 0.15);
         }
 
         * {
@@ -165,6 +164,7 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             justify-content: center;
             font-weight: 800;
             position: relative;
+            color: var(--text-muted);
         }
 
         .customer-item.active .customer-avatar {
@@ -281,10 +281,20 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             border-radius: 20px 20px 4px 20px;
         }
 
-        .message .time {
-            font-size: 0.7rem;
+        .msg-footer {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
             margin-top: 6px;
-            display: block;
+        }
+
+        .message.customer .msg-footer {
+            justify-content: flex-start;
+        }
+
+        .time {
+            font-size: 0.7rem;
             font-weight: 600;
         }
 
@@ -296,11 +306,28 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             color: rgba(255, 255, 255, 0.8);
         }
 
+        .btn-del-msg {
+            background: none;
+            border: none;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.3s;
+            padding: 0;
+        }
+
+        .message.admin .btn-del-msg {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .message.admin .btn-del-msg:hover {
+            color: white;
+        }
+
         .chat-image {
             max-width: 250px;
             width: 100%;
             border-radius: 12px;
-            margin-top: 8px;
+            margin-bottom: 8px;
             cursor: pointer;
             border: 2px solid rgba(255, 255, 255, 0.2);
             transition: transform 0.2s;
@@ -323,13 +350,13 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             background: #F1F5F9;
             color: var(--text-muted);
             border: 1px solid var(--border-subtle);
-            width: 50px;
-            height: 50px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             cursor: pointer;
             transition: all 0.3s;
         }
@@ -347,7 +374,7 @@ $selected_id = (int) ($_GET['id'] ?? 0);
 
         .chat-input input[type="text"] {
             flex: 1;
-            padding: 15px 25px;
+            padding: 12px 20px;
             border: 1px solid var(--border-subtle);
             border-radius: 30px;
             outline: none;
@@ -356,8 +383,8 @@ $selected_id = (int) ($_GET['id'] ?? 0);
         }
 
         .chat-input button[type="submit"] {
-            width: 55px;
-            height: 55px;
+            width: 45px;
+            height: 45px;
             border-radius: 50%;
             background: var(--brand-gradient);
             color: white;
@@ -365,7 +392,7 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             cursor: pointer;
         }
 
@@ -441,7 +468,7 @@ $selected_id = (int) ($_GET['id'] ?? 0);
 
         <div class="chat-area">
             <?php if ($selected_id > 0):
-                $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT nama, username, is_online FROM users WHERE id = $selected_id"));
+                $cust = mysqli_fetch_assoc(mysqli_query($conn, "SELECT nama, username, is_online, last_seen FROM users WHERE id = $selected_id"));
                 ?>
                 <div class="chat-header">
                     <div class="avatar">
@@ -468,7 +495,7 @@ $selected_id = (int) ($_GET['id'] ?? 0);
                         <i class="bi bi-paperclip"></i>
                     </button>
                     <input type="text" id="msgInput" placeholder="Ketik balasan untuk pelanggan..." autocomplete="off">
-                    <button type="submit"><i class="bi bi-send-fill"></i></button>
+                    <button type="submit" title="Kirim Balasan"><i class="bi bi-send-fill"></i></button>
                 </form>
             <?php else: ?>
                 <div class="empty-state">
@@ -487,8 +514,10 @@ $selected_id = (int) ($_GET['id'] ?? 0);
             const msgInput = document.getElementById('msgInput');
             const imageInput = document.getElementById('imageInput');
             const attachBtn = document.getElementById('attachBtn');
+            const customerStatus = document.getElementById('customerStatus');
             const targetId = <?= $selected_id; ?>;
             let lastCount = 0;
+            let isActive = 1;
 
             imageInput.addEventListener('change', function () {
                 if (this.files.length > 0) {
@@ -500,6 +529,11 @@ $selected_id = (int) ($_GET['id'] ?? 0);
                 }
             });
 
+            function formatTime(dateStr) {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+
             function loadChat() {
                 fetch('../chat_api.php?action=fetch&target_id=' + targetId)
                     .then(r => r.json())
@@ -510,16 +544,44 @@ $selected_id = (int) ($_GET['id'] ?? 0);
                                 const div = document.createElement('div');
                                 div.className = 'message ' + msg.sender_role;
 
-                                let content = msg.message;
-                                if (msg.attachment) {
-                                    content += `<div class="mt-2"><img src="../uploads/chat/${msg.attachment}" class="chat-image" onclick="window.open(this.src, '_blank')"></div>`;
-                                }
+                                let content = '';
+                                if (msg.attachment) content += `<img src="../uploads/chat/${msg.attachment}" class="chat-image" onclick="window.open(this.src, '_blank')"><br>`;
+                                if (msg.message) content += msg.message;
 
-                                div.innerHTML = content + '<span class="time">' + new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + '</span>';
+                                let footer = `<div class="msg-footer">`;
+                                if (msg.sender_role === 'admin') {
+                                    footer += `<button class="btn-del-msg" onclick="deleteMsg(${msg.id})" title="Hapus Pesan"><i class="bi bi-trash3-fill"></i></button>`;
+                                }
+                                footer += `<span class="time">${formatTime(msg.created_at)}</span></div>`;
+
+                                div.innerHTML = content + footer;
                                 chatMessages.appendChild(div);
                             });
                             chatMessages.scrollTop = chatMessages.scrollHeight;
                             lastCount = data.length;
+                        }
+                    });
+            }
+
+            function deleteMsg(id) {
+                if (!confirm('Hapus pesan ini secara permanen?')) return;
+                const fd = new FormData();
+                fd.append('msg_id', id);
+                fetch('../chat_api.php?action=delete', { method: 'POST', body: fd })
+                    .then(() => { lastCount = 0; loadChat(); });
+            }
+
+            function checkCustomerStatus() {
+                fetch('../chat_api.php?action=check_status&target_id=' + targetId)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.is_online == 1) {
+                            customerStatus.className = 'status online';
+                            customerStatus.innerHTML = '<i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i> Online';
+                        } else {
+                            customerStatus.className = 'status offline';
+                            let last = data.last_seen ? formatTime(data.last_seen) : '-';
+                            customerStatus.innerHTML = '<i class="bi bi-circle-fill" style="font-size: 0.5rem;"></i> Terakhir online: ' + last;
                         }
                     });
             }
@@ -541,12 +603,13 @@ $selected_id = (int) ($_GET['id'] ?? 0);
                 attachBtn.classList.remove('has-file');
 
                 fetch('../chat_api.php?action=send', { method: 'POST', body: formData })
-                    .then(() => loadChat());
+                    .then(() => { lastCount = 0; loadChat(); });
             });
 
-            loadChat();
+            loadChat(); checkCustomerStatus();
             setInterval(loadChat, 3000);
-            setInterval(() => fetch('../chat_api.php?action=status&active=1'), 10000);
+            setInterval(checkCustomerStatus, 10000);
+            setInterval(() => fetch('../chat_api.php?action=status&active=1'), 15000);
         </script>
     <?php endif; ?>
 </body>

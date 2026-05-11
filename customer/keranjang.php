@@ -1,9 +1,8 @@
 <?php
-// keranjang.php
 session_start();
 require_once '../config/koneksi.php';
 
-if (!isset($_SESSION['user_id'])) {
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'customer') {
     header('Location: ../auth/login.php');
     exit;
 }
@@ -11,6 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = (int) $_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // A. Perbarui Kuantitas
     if (isset($_POST['update'])) {
         if (isset($_POST['qty']) && is_array($_POST['qty'])) {
             foreach ($_POST['qty'] as $key => $qty) {
@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // B. Hapus Item
     if (isset($_POST['hapus'])) {
         $key = $_POST['hapus_key'];
         unset($_SESSION['keranjang'][$key]);
@@ -33,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    // C. Checkout Item Terpilih
     if (isset($_POST['checkout'])) {
         if (!empty($_POST['selected_items'])) {
             $_SESSION['checkout_items'] = $_POST['selected_items'];
@@ -51,6 +53,7 @@ $items = [];
 $total = 0;
 
 if (!empty($keranjang)) {
+    // AUTO-HEAL: Memperbaiki keranjang lama yang tidak memiliki index varian
     $healed_cart = [];
     $needs_healing = false;
     foreach ($keranjang as $key => $qty) {
@@ -67,9 +70,9 @@ if (!empty($keranjang)) {
         $keranjang = $healed_cart;
     }
 
+    // Ambil Data Produk
     $unique_pids = array_unique(array_map(function ($k) {
-        return explode('_', $k)[0];
-    }, array_keys($keranjang)));
+        return explode('_', $k)[0]; }, array_keys($keranjang)));
     $products_data = [];
 
     if (!empty($unique_pids)) {
@@ -80,6 +83,7 @@ if (!empty($keranjang)) {
         }
     }
 
+    // Ekstraksi Varian spesifik
     foreach ($keranjang as $key => $qty) {
         list($pid, $v_idx) = explode('_', $key);
         if (isset($products_data[$pid])) {
@@ -269,11 +273,6 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             color: var(--brand-purple);
         }
 
-        .dropdown-item.text-danger:hover {
-            background-color: #FEF2F2;
-            color: #DC2626 !important;
-        }
-
         .page-header {
             background: var(--brand-gradient);
             padding: 50px 0 40px;
@@ -292,7 +291,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 
         .cart-wrapper {
             display: grid;
-            grid-template-columns: 1fr 400px;
+            grid-template-columns: 1fr 380px;
             gap: 32px;
             margin-bottom: 60px;
         }
@@ -307,7 +306,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 
         .cart-item {
             display: grid;
-            grid-template-columns: auto 120px 1fr auto;
+            grid-template-columns: auto 100px 1fr auto;
             gap: 24px;
             padding: 24px 0;
             border-bottom: 1px solid var(--border-subtle);
@@ -321,13 +320,13 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         .image-frame {
             background: #F8FAFC;
             border: 1px solid var(--border-subtle);
-            border-radius: 20px;
-            width: 120px;
+            border-radius: 16px;
+            width: 100px;
             aspect-ratio: 1 / 1;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 15px;
+            padding: 10px;
         }
 
         .image-frame img {
@@ -338,51 +337,53 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         }
 
         .item-details h3 {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 800;
             color: var(--text-dark);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .variant-pill {
             background: #F4F7FE;
             color: var(--text-dark);
             border: 1px solid var(--border-subtle);
-            font-size: 0.75rem;
-            padding: 6px 12px;
-            border-radius: 8px;
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            border-radius: 6px;
             display: inline-flex;
             font-weight: 700;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .item-price {
-            font-size: 1.3rem;
+            font-size: 1.15rem;
             font-weight: 800;
             background: var(--brand-gradient);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .qty-control {
             display: inline-flex;
             align-items: center;
             background: #F8FAFC;
-            border-radius: 12px;
+            border-radius: 10px;
             border: 1px solid var(--border-subtle);
             overflow: hidden;
         }
 
+        /* PERBAIKAN: Tombol QTY dan Hapus Diperkecil */
         .qty-btn {
-            width: 40px;
-            height: 40px;
+            width: 32px;
+            height: 32px;
             border: none;
             background: transparent;
             font-weight: 800;
             color: var(--brand-navy);
             transition: background 0.2s;
+            font-size: 1rem;
         }
 
         .qty-btn:hover {
@@ -390,12 +391,12 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         }
 
         .qty-input {
-            width: 50px;
+            width: 40px;
             border: none;
             background: transparent;
             text-align: center;
             font-weight: 800;
-            font-size: 1rem;
+            font-size: 0.95rem;
             color: var(--text-dark);
             outline: none;
         }
@@ -409,28 +410,28 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         }
 
         .item-subtotal h4 {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--text-muted);
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             font-weight: 600;
         }
 
         .item-subtotal p {
-            font-size: 1.4rem;
+            font-size: 1.25rem;
             font-weight: 800;
             color: var(--text-dark);
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .btn-remove {
             background: #FEF2F2;
             color: #DC2626;
             border: none;
-            padding: 10px 16px;
-            border-radius: 12px;
+            padding: 8px 14px;
+            border-radius: 10px;
             font-weight: 700;
             transition: all 0.3s;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             display: flex;
             align-items: center;
             gap: 6px;
@@ -454,10 +455,10 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         }
 
         .summary-title {
-            font-size: 1.4rem;
+            font-size: 1.3rem;
             font-weight: 800;
             color: var(--brand-navy);
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             padding-bottom: 16px;
             border-bottom: 1px solid var(--border-subtle);
         }
@@ -465,7 +466,8 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         .summary-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
         }
 
         .summary-label {
@@ -481,21 +483,21 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         .summary-total {
             display: flex;
             justify-content: space-between;
-            padding-top: 20px;
+            padding-top: 16px;
             border-top: 2px dashed var(--border-subtle);
-            margin-top: 20px;
-            margin-bottom: 28px;
+            margin-top: 16px;
+            margin-bottom: 24px;
             align-items: center;
         }
 
         .summary-total .summary-label {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 800;
             color: var(--text-dark);
         }
 
         .summary-total .summary-value {
-            font-size: 1.6rem;
+            font-size: 1.4rem;
             font-weight: 800;
             background: var(--brand-gradient);
             -webkit-background-clip: text;
@@ -503,21 +505,23 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             -webkit-text-fill-color: transparent;
         }
 
+        /* PERBAIKAN: Tombol Checkout Diperkecil */
         .btn-primary {
             background: var(--brand-gradient);
             color: white;
             border: none;
             padding: 12px 20px;
-            border-radius: 14px;
+            border-radius: 12px;
             font-weight: 700;
             width: 100%;
             transition: all 0.3s;
-            font-size: 1rem;
+            font-size: 0.95rem;
             display: flex;
             justify-content: center;
             align-items: center;
             gap: 8px;
             text-decoration: none;
+            cursor: pointer;
         }
 
         .btn-primary:hover:not(:disabled) {
@@ -536,7 +540,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             color: var(--text-muted);
             border: 2px solid var(--border-subtle);
             padding: 12px 20px;
-            border-radius: 14px;
+            border-radius: 12px;
             font-weight: 700;
             width: 100%;
             transition: all 0.3s;
@@ -546,6 +550,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             gap: 8px;
             text-decoration: none;
             margin-top: 12px;
+            cursor: pointer;
         }
 
         .btn-outline:hover {
@@ -561,12 +566,13 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             border-radius: 30px;
             box-shadow: var(--card-shadow);
             border: 1px solid var(--border-subtle);
+            margin-bottom: 60px;
         }
 
         .empty-state i {
-            font-size: 6rem;
-            color: #E2E8F0;
-            margin-bottom: 24px;
+            font-size: 5rem;
+            color: #CBD5E1;
+            margin-bottom: 20px;
             display: block;
         }
 
@@ -588,7 +594,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             }
 
             .cart-item {
-                grid-template-columns: auto 100px 1fr;
+                grid-template-columns: auto 80px 1fr;
                 gap: 16px;
                 align-items: start;
             }
@@ -612,6 +618,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
 </head>
 
 <body>
+
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
@@ -660,13 +667,10 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                                 <i class="bi bi-person-circle fs-5 text-gradient"></i>
                             <?php endif; ?>
                             <span class="text-gradient">
-                                <?= htmlspecialchars($active_user['username'] ?? $_SESSION['username'] ?? 'User') ?>
+                                <?= htmlspecialchars($active_user['username'] ?? 'User') ?>
                             </span>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            <li>
-                                <hr class="dropdown-divider">
-                            </li>
                             <li><a class="dropdown-item text-danger fw-bold d-flex align-items-center"
                                     href="../auth/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                         </ul>
@@ -778,6 +782,10 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                                 </div>
                             </div>
                         <?php endforeach; ?>
+
+                        <div class="d-flex justify-content-end mt-4 pt-3 border-top border-subtle">
+                            <button type="submit" name="update" style="display: none;" id="btnUpdateCart">Update</button>
+                        </div>
                     </div>
 
                     <div class="cart-summary">
@@ -794,7 +802,7 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
                                 <?= number_format($total, 0, ',', '.') ?>
                             </span>
                         </div>
-                        <button type="submit" name="checkout" class="btn-primary" id="btn-checkout">
+                        <button type="submit" name="checkout" class="btn-primary mb-2" id="btn-checkout">
                             <i class="bi bi-lock-fill"></i> Checkout Sekarang
                         </button>
                         <a href="katalog.php" class="btn-outline">
@@ -882,7 +890,9 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
         window.addEventListener('DOMContentLoaded', () => {
             const checked = JSON.parse(sessionStorage.getItem('cartCheckedItems'));
             if (checked && document.querySelectorAll('.item-check').length > 0) {
-                document.querySelectorAll('.item-check').forEach(cb => cb.checked = checked.includes(cb.value));
+                document.querySelectorAll('.item-check').forEach(cb => {
+                    if (checked.includes(cb.value)) cb.checked = true;
+                });
                 const total = document.querySelectorAll('.item-check').length;
                 const cCount = document.querySelectorAll('.item-check:checked').length;
                 const selectAll = document.getElementById('selectAll');
