@@ -343,8 +343,8 @@ if (isset($_SESSION['user_id'])) {
             <div class="orb-1"></div>
             <div class="orb-2"></div>
             <div class="position-relative z-3">
-                <h1 class="display-5 fw-bold text-white mb-2" style="letter-spacing: -1px;">Eksplorasi Katalog</h1>
-                <p class="fs-5 text-white opacity-75 mb-0">Temukan perangkat cerdas yang mendefinisikan gaya Anda.</p>
+                <h1 class="display-5 fw-bold text-white mb-2" style="letter-spacing: -1px;">Katalisator Produktivitas</h1>
+                <p class="fs-5 text-white opacity-75 mb-0">Tempat Jual HP aja Ngab, Sokin!</p>
             </div>
         </div>
 
