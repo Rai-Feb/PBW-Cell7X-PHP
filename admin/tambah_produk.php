@@ -2,8 +2,7 @@
 session_start();
 require_once '../config/koneksi.php';
 
-/** @var mysqli $conn */
-
+// Proteksi halaman, hanya admin yang boleh masuk
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
     exit;
@@ -19,37 +18,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $varian_json = trim($_POST['varian_json'] ?? '[]');
 
     $gambar = '';
+    
+    // LOGIKA UPLOAD GAMBAR
     if (isset($_FILES['gambar']) && $_FILES['gambar']['error'] == 0) {
         $allowed = ['jpg', 'jpeg', 'png', 'webp'];
         $ext = strtolower(pathinfo($_FILES['gambar']['name'], PATHINFO_EXTENSION));
 
         if (in_array($ext, $allowed)) {
+            // Penamaan Unik: Timestamp + ID Unik agar tidak bentrok
             $new_filename = time() . '_' . uniqid() . '.' . $ext;
+            // Arahkan ke folder uploads di luar folder admin
             $upload_path = '../uploads/';
-            if (!is_dir($upload_path))
+            
+            // Buat folder otomatis jika belum ada
+            if (!is_dir($upload_path)) {
                 mkdir($upload_path, 0777, true);
+            }
+            
+            // Pindahkan file fisik ke folder uploads
             if (move_uploaded_file($_FILES['gambar']['tmp_name'], $upload_path . $new_filename)) {
-                $gambar = $new_filename;
+                $gambar = $new_filename; // Simpan nama file ke variabel untuk database
             } else {
-                $error = "Gagal mengupload gambar.";
+                $error = "Gagal memindahkan gambar ke folder uploads. Periksa permission folder.";
             }
         } else {
-            $error = "Format gambar tidak didukung.";
+            $error = "Format gambar tidak didukung! Gunakan JPG, PNG, atau WebP.";
         }
+    } else {
+        $error = "Gambar wajib diunggah!";
     }
 
+    // PROSES INSERT KE DATABASE JIKA TIDAK ADA ERROR GAMBAR
     if (empty($error)) {
         $decoded = json_decode($varian_json, true);
         if (json_last_error() !== JSON_ERROR_NONE || empty($decoded)) {
             $error = "Minimal satu varian RAM/ROM harus diisi.";
         } else {
+            // Kalkulasi harga min/max dan total stok otomatis dari JSON varian
             $harga_min = min(array_column($decoded, 'harga'));
             $harga_max = max(array_column($decoded, 'harga'));
-
-            // Menjumlahkan stok total dari setiap varian
+            
             $stok_total = 0;
             foreach ($decoded as $v) {
-                $stok_total += (int) ($v['stok'] ?? 0);
+                $stok_total += (int)($v['stok'] ?? 0);
             }
 
             $stmt = mysqli_prepare($conn, "INSERT INTO products (nama_barang, kategori, harga_min, harga_max, stok, deskripsi, gambar, varian, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
@@ -68,346 +79,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 ?>
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tambah Produk - 7CellX Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --brand-pink: #E91E63;
-            --brand-purple: #9C27B0;
-            --brand-navy: #1A237E;
-            --bg-main: #F4F7FE;
-            --bg-card: #FFFFFF;
-            --text-dark: #0F172A;
-            --text-muted: #64748B;
-            --border-subtle: #E2E8F0;
-            --brand-gradient: linear-gradient(135deg, #E91E63 0%, #9C27B0 50%, #1A237E 100%);
-            --glow-shadow: 0 15px 35px rgba(156, 39, 176, 0.15);
-            --card-shadow: 0 8px 25px rgba(0, 0, 0, 0.03);
-        }
+        :root { --brand-pink: #E91E63; --brand-purple: #9C27B0; --brand-navy: #1A237E; --bg-main: #F4F7FE; --bg-card: #FFFFFF; --text-dark: #0F172A; --text-muted: #64748B; --border-subtle: #E2E8F0; --brand-gradient: linear-gradient(135deg, #E91E63 0%, #9C27B0 50%, #1A237E 100%); --glow-shadow: 0 15px 35px rgba(156, 39, 176, 0.15); --card-shadow: 0 8px 25px rgba(0, 0, 0, 0.03); }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: var(--bg-main); color: var(--text-dark); min-height: 100vh; display: flex; flex-direction: column; }
+        .navbar { background: var(--brand-gradient) !important; padding: 0.8rem 0; border-bottom: 1px solid rgba(255, 255, 255, 0.35); box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 100; }
+        .brand-pill { background: #FFFFFF; padding: 6px 20px 6px 8px; border-radius: 30px; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.3s; }
+        .brand-logo-img { height: 30px; width: 30px; border-radius: 50%; object-fit: contain; }
+        .text-gradient { background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-link { color: rgba(255, 255, 255, 0.85) !important; font-weight: 600; margin: 0 5px; padding: 8px 16px !important; border-radius: 12px; transition: all 0.3s; }
+        .nav-link:hover, .nav-link.active { background: rgba(255, 255, 255, 0.2); color: #FFFFFF !important; transform: translateY(-1px); }
+        .btn-white-nav { background: #FFFFFF; color: var(--brand-purple); font-weight: 700; padding: 8px 20px; border-radius: 30px; border: none; transition: all 0.3s; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); text-decoration: none; }
+        .dropdown-menu { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); padding: 10px; margin-top: 15px !important; }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-        }
+        .main-content { padding: 40px 0; flex-grow: 1; }
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; justify-content: center; }
+        .page-header h1 { font-size: 2rem; font-weight: 800; color: var(--brand-navy); display: flex; align-items: center; gap: 12px; letter-spacing: -0.5px; }
 
-        body {
-            background: var(--bg-main);
-            color: var(--text-dark);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+        .content-card { background: var(--bg-card); border-radius: 24px; padding: 40px; border: 1px solid var(--border-subtle); box-shadow: var(--card-shadow); max-width: 900px; margin: 0 auto; }
+        .form-label { font-weight: 700; color: var(--text-muted); font-size: 0.85rem; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
+        .form-control, .form-select { border-radius: 14px; padding: 14px 18px; border: 1px solid var(--border-subtle); background: #F8FAFC; font-weight: 500; font-size: 0.95rem; }
+        .form-control:focus, .form-select:focus { border-color: var(--brand-purple); box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1); background: white; outline: none; }
 
-        .navbar {
-            background: var(--brand-gradient) !important;
-            padding: 0.8rem 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.35);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            z-index: 100;
-        }
+        .variant-container { background: #F8FAFC; padding: 24px; border-radius: 16px; border: 1px dashed var(--border-subtle); }
+        .variant-row { display: grid; grid-template-columns: repeat(4, 1fr) 50px; gap: 12px; margin-bottom: 12px; background: white; padding: 12px; border-radius: 12px; border: 1px solid var(--border-subtle); }
+        .btn-remove-var { background: #FEF2F2; color: #DC2626; border: none; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: all 0.3s; cursor: pointer; }
+        .btn-remove-var:hover { background: #DC2626; color: white; }
+        .btn-add-var { background: white; color: var(--brand-purple); border: 2px dashed var(--brand-purple); padding: 12px; border-radius: 12px; font-weight: 700; width: 100%; transition: all 0.3s; cursor: pointer;}
+        .btn-add-var:hover { background: rgba(156, 39, 176, 0.05); }
 
-        @media (min-width: 992px) {
-            .nav-zone-left {
-                flex: 1;
-                display: flex;
-                justify-content: flex-start;
-            }
+        .btn-primary-custom { background: var(--brand-gradient); color: white; border: none; padding: 14px 24px; border-radius: 14px; font-weight: 700; transition: all 0.3s; width: 100%; font-size: 1.05rem; display: inline-flex; justify-content: center; align-items: center;}
+        .btn-primary-custom:hover:not(:disabled) { transform: translateY(-3px); box-shadow: var(--glow-shadow); color: white;}
+        .btn-outline-custom { background: white; color: var(--text-muted); border: 2px solid var(--border-subtle); padding: 14px 24px; border-radius: 14px; font-weight: 700; transition: all 0.3s; text-align: center; text-decoration: none; display: inline-flex; justify-content: center; align-items: center;}
+        .btn-outline-custom:hover { border-color: var(--text-dark); color: var(--text-dark); }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spin { animation: spin 1s linear infinite; display: inline-block; }
 
-            .nav-zone-center {
-                flex: 2;
-                display: flex;
-                justify-content: center;
-            }
-
-            .nav-zone-right {
-                flex: 1;
-                display: flex;
-                justify-content: flex-end;
-            }
-        }
-
-        .brand-pill {
-            background: #FFFFFF;
-            padding: 6px 20px 6px 8px;
-            border-radius: 30px;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s;
-        }
-
-        .brand-pill:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
-        }
-
-        .brand-logo-img {
-            height: 30px;
-            width: 30px;
-            border-radius: 50%;
-            object-fit: contain;
-        }
-
-        .text-gradient {
-            background: var(--brand-gradient);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .nav-link {
-            color: rgba(255, 255, 255, 0.85) !important;
-            font-weight: 600;
-            margin: 0 5px;
-            padding: 8px 16px !important;
-            border-radius: 12px;
-            transition: all 0.3s;
-        }
-
-        .nav-link:hover,
-        .nav-link.active {
-            background: rgba(255, 255, 255, 0.2);
-            color: #FFFFFF !important;
-            transform: translateY(-1px);
-        }
-
-        .btn-white-nav {
-            background: #FFFFFF;
-            color: var(--brand-purple);
-            font-weight: 700;
-            padding: 8px 20px;
-            border-radius: 30px;
-            border: none;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            text-decoration: none;
-        }
-
-        .btn-white-nav:hover {
-            transform: translateY(-2px);
-            color: var(--brand-pink);
-        }
-
-        .dropdown-menu {
-            border: none;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-            padding: 10px;
-            margin-top: 15px !important;
-        }
-
-        .main-content {
-            padding: 40px 0;
-            flex-grow: 1;
-        }
-
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            justify-content: center;
-        }
-
-        .page-header h1 {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--brand-navy);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            letter-spacing: -0.5px;
-        }
-
-        .content-card {
-            background: var(--bg-card);
-            border-radius: 24px;
-            padding: 40px;
-            border: 1px solid var(--border-subtle);
-            box-shadow: var(--card-shadow);
-            max-width: 900px;
-            margin: 0 auto;
-        }
-
-        .form-label {
-            font-weight: 700;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
-        }
-
-        .form-control,
-        .form-select {
-            border-radius: 14px;
-            padding: 14px 18px;
-            border: 1px solid var(--border-subtle);
-            background: #F8FAFC;
-            font-weight: 500;
-            font-size: 0.95rem;
-        }
-
-        .form-control:focus,
-        .form-select:focus {
-            border-color: var(--brand-purple);
-            box-shadow: 0 0 0 4px rgba(156, 39, 176, 0.1);
-            background: white;
-            outline: none;
-        }
-
-        .variant-container {
-            background: #F8FAFC;
-            padding: 24px;
-            border-radius: 16px;
-            border: 1px dashed var(--border-subtle);
-        }
-
-        .variant-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr) 50px;
-            gap: 12px;
-            margin-bottom: 12px;
-            background: white;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid var(--border-subtle);
-        }
-
-        .btn-remove-var {
-            background: #FEF2F2;
-            color: #DC2626;
-            border: none;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .btn-remove-var:hover {
-            background: #DC2626;
-            color: white;
-        }
-
-        .btn-add-var {
-            background: white;
-            color: var(--brand-purple);
-            border: 2px dashed var(--brand-purple);
-            padding: 12px;
-            border-radius: 12px;
-            font-weight: 700;
-            width: 100%;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .btn-add-var:hover {
-            background: rgba(156, 39, 176, 0.05);
-        }
-
-        .btn-primary-custom {
-            background: var(--brand-gradient);
-            color: white;
-            border: none;
-            padding: 14px 24px;
-            border-radius: 14px;
-            font-weight: 700;
-            transition: all 0.3s;
-            width: 100%;
-            font-size: 1.05rem;
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .btn-primary-custom:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--glow-shadow);
-            color: white;
-        }
-
-        .btn-outline-custom {
-            background: white;
-            color: var(--text-muted);
-            border: 2px solid var(--border-subtle);
-            padding: 14px 24px;
-            border-radius: 14px;
-            font-weight: 700;
-            transition: all 0.3s;
-            text-align: center;
-            text-decoration: none;
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .btn-outline-custom:hover {
-            border-color: var(--text-dark);
-            color: var(--text-dark);
-        }
-
-        footer {
-            margin-top: auto;
-            background: var(--brand-gradient);
-            padding: 20px 0;
-            text-align: center;
-            color: white;
-        }
+        footer { margin-top: auto; background: var(--brand-gradient); padding: 20px 0; text-align: center; color: white;}
+        @media (max-width: 992px) { .nav-zone-left { flex: 1; display: flex; justify-content: flex-start; } .nav-zone-center { flex: 2; display: flex; justify-content: center; } .nav-zone-right { flex: 1; display: flex; justify-content: flex-end; } }
     </style>
 </head>
-
 <body>
     <nav class="navbar navbar-expand-lg sticky-top">
         <div class="container d-lg-flex px-4">
             <div class="nav-zone-left">
                 <a class="brand-pill" href="index.php">
-                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img"
-                        onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
+                    <img src="../assets/img/logo.png" alt="Logo" class="brand-logo-img" onerror="this.src='https://via.placeholder.com/40x40/0F172A/FFFFFF?text=7C'">
                     <span class="text-gradient fw-bold fs-5 mb-0" style="letter-spacing: -0.5px;">7CellX Admin</span>
                 </a>
+                <button class="navbar-toggler ms-auto border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon" style="filter: brightness(0) invert(1);"></span>
+                </button>
             </div>
-            <div class="collapse navbar-collapse nav-zone-center" id="navbarNav">
+            <div class="collapse navbar-collapse nav-zone-center justify-content-center" id="navbarNav">
                 <ul class="navbar-nav align-items-center gap-2 mt-3 mt-lg-0">
-                    <li class="nav-item"><a class="nav-link" href="index.php"><i class="bi bi-speedometer2"></i>
-                            Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link active" href="produk.php"><i class="bi bi-box-seam"></i>
-                            Produk</a></li>
-                    <li class="nav-item"><a class="nav-link" href="pesanan.php"><i class="bi bi-receipt"></i>
-                            Pesanan</a></li>
-                    <li class="nav-item"><a class="nav-link" href="chat.php"><i class="bi bi-chat-dots"></i> Chat</a>
-                    </li>
+                    <li class="nav-item"><a class="nav-link" href="index.php"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="produk.php"><i class="bi bi-box-seam"></i> Produk</a></li>
+                    <li class="nav-item"><a class="nav-link" href="pesanan.php"><i class="bi bi-receipt"></i> Pesanan</a></li>
+                    <li class="nav-item"><a class="nav-link" href="chat.php"><i class="bi bi-chat-dots"></i> Chat</a></li>
+                    <li class="nav-item"><a class="nav-link" href="lihat_toko.php"><i class="bi bi-shop"></i> Lihat Toko</a></li>
                 </ul>
             </div>
-            <div class="collapse navbar-collapse nav-zone-right" id="navbarNavRight">
-                <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0 w-100 justify-content-lg-end">
-                    <div class="dropdown">
-                        <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="bi bi-shield-check fs-5 text-gradient"></i>
-                            <span class="text-gradient">
-                                <?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?>
-                            </span>
-                        </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i
-                                        class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
-                        </ul>
-                    </div>
+            <div class="collapse navbar-collapse nav-zone-right justify-content-end" id="navbarNavRight">
+                <div class="dropdown mt-3 mt-lg-0">
+                    <button class="btn-white-nav dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-shield-check fs-5 text-gradient"></i>
+                        <span class="text-gradient"><?= htmlspecialchars($_SESSION['username'] ?? 'Admin') ?></span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item text-danger fw-bold" href="../auth/logout.php"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -420,17 +169,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
             <div class="content-card">
                 <?php if ($error): ?>
-                    <div class="alert alert-danger rounded-4 fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i>
-                        <?= htmlspecialchars($error) ?>
-                    </div>
+                    <div class="alert alert-danger rounded-4 fw-bold"><i class="bi bi-exclamation-triangle-fill me-2"></i> <?= htmlspecialchars($error) ?></div>
                 <?php endif; ?>
 
-                <form method="POST" enctype="multipart/form-data">
+                <form method="POST" enctype="multipart/form-data" id="formProduk">
                     <div class="row g-4 mb-4">
                         <div class="col-md-6">
                             <label class="form-label">Nama Produk <span class="text-danger">*</span></label>
-                            <input type="text" name="nama_barang" class="form-control"
-                                placeholder="Contoh: Samsung Galaxy S25 FE" required>
+                            <input type="text" name="nama_barang" class="form-control" placeholder="Contoh: Samsung Galaxy S25 FE" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Kategori/Brand <span class="text-danger">*</span></label>
@@ -453,15 +199,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                         <div class="col-12">
                             <label class="form-label">Deskripsi Lengkap Produk</label>
-                            <textarea name="deskripsi" class="form-control" rows="4"
-                                placeholder="Jelaskan spesifikasi, fitur, dan garansi produk..."></textarea>
+                            <textarea name="deskripsi" class="form-control" rows="4" placeholder="Jelaskan spesifikasi, fitur, dan garansi produk..."></textarea>
                         </div>
                     </div>
 
                     <div class="variant-container mb-4">
                         <div class="d-flex justify-content-between mb-3">
-                            <label class="form-label mb-0">Konfigurasi Varian & Stok <span
-                                    class="text-danger">*</span></label>
+                            <label class="form-label mb-0">Konfigurasi Varian & Stok <span class="text-danger">*</span></label>
                         </div>
                         <div class="d-grid gap-2 mb-2" style="grid-template-columns: repeat(4, 1fr) 50px;">
                             <small class="fw-bold text-muted text-center">RAM (GB)</small>
@@ -478,8 +222,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <input type="hidden" name="varian_json" id="varian-json-input">
                     <div class="d-flex gap-3">
-                        <button type="submit" class="btn-primary-custom flex-grow-1"><i class="bi bi-save me-2"></i>
-                            Simpan ke Database</button>
+                        <button type="submit" class="btn-primary-custom flex-grow-1" id="btnSubmit">
+                            <i class="bi bi-save me-2"></i> Simpan ke Database
+                        </button>
                         <a href="produk.php" class="btn-outline-custom"><i class="bi bi-x-lg me-2"></i> Batal</a>
                     </div>
                 </form>
@@ -488,15 +233,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </main>
 
     <footer>
-        <div class="container small fw-medium opacity-75">&copy;
-            <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.
-        </div>
+        <div class="container small fw-medium opacity-75">&copy; <?= date('Y') ?> 7CellX Admin Panel. Engineered with precision.</div>
     </footer>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const container = document.getElementById('variant-container');
         const addBtn = document.getElementById('add-variant-btn');
         const hiddenInput = document.getElementById('varian-json-input');
+        const form = document.getElementById('formProduk');
+        const btnSubmit = document.getElementById('btnSubmit');
 
         function createVariantRow() {
             const row = document.createElement('div');
@@ -537,8 +283,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         container.addEventListener('input', syncVariants);
         addBtn.addEventListener('click', createVariantRow);
+        
+        // Inisialisasi baris pertama saat halaman dimuat
         createVariantRow();
+
+        // PENCEGAHAN DOUBLE SUBMIT
+        form.addEventListener('submit', function(e) {
+            // Pastikan data JSON varian sinkron sebelum form dikirim
+            syncVariants(); 
+            
+            // Kunci tombol "Simpan" sedetik setelah diklik agar tidak terjadi pengiriman ganda
+            setTimeout(() => {
+                btnSubmit.disabled = true;
+                btnSubmit.innerHTML = '<i class="bi bi-arrow-repeat spin me-2"></i> Memproses...';
+            }, 10);
+        });
     </script>
 </body>
-
 </html>
