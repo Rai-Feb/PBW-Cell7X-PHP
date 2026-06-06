@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/koneksi.php';
+/** @var mysqli $conn */
 
 if (!isset($_SESSION['user_id'])) {
     header('Location: ../auth/login.php');

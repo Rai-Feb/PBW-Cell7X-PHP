@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/koneksi.php';
+/** @var mysqli $conn */
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
     header('Location: ../auth/login.php');
@@ -269,8 +270,8 @@ $active_user = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt_user));
             <div class="orb-1"></div>
             <div class="orb-2"></div>
             <div class="position-relative z-3">
-                <h1 class="display-5 fw-bold text-white mb-2" style="letter-spacing: -1px;">Eksplorasi Katalog</h1>
-                <p class="fs-5 text-white opacity-75 mb-0">Temukan perangkat cerdas yang mendefinisikan gaya Anda.</p>
+                <h1 class="display-5 fw-bold text-white mb-2" style="letter-spacing: -1px;">Katalisator Produktivitas</h1>
+                <p class="fs-5 text-white opacity-75 mb-0">Inpokan Deskripsi yang menarik</p>
             </div>
         </div>
 

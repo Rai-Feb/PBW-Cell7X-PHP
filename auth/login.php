@@ -23,7 +23,7 @@ if (isset($_POST['login'])) {
     $result = mysqli_stmt_get_result($stmt);
 
     if ($user_data = mysqli_fetch_assoc($result)) {
-        // HYBRID VERIFICATION: Cek enkripsi BCRYPT atau Plain Text (untuk akun lama)
+        // Hybrid Verif; Cek enkripsi BCRYPT atau Plain Text 
         if (password_verify($password, $user_data['password']) || $password === $user_data['password']) {
             $_SESSION['status_login'] = true;
             $_SESSION['user_id'] = $user_data['id'];
@@ -31,7 +31,7 @@ if (isset($_POST['login'])) {
             $_SESSION['username'] = $user_data['username'];
             $_SESSION['role'] = $user_data['role'];
 
-            // Update status online
+            // Update status Online
             $update_stmt = mysqli_prepare($conn, "UPDATE users SET is_online = 1 WHERE id = ?");
             mysqli_stmt_bind_param($update_stmt, "i", $user_data['id']);
             mysqli_stmt_execute($update_stmt);
@@ -190,11 +190,11 @@ if (isset($_POST['login'])) {
         <div class="auth-card">
             <div class="text-center mb-4">
                 <a href="../customer/katalog.php" class="text-decoration-none d-inline-block mb-3">
-                    <img src="../assets/img/logo.png" alt="Logo" style="height: 50px;"
+                    <img src="../assets/logo.png" alt="Logo" style="height: 50px;"
                         onerror="this.src='https://via.placeholder.com/50x50/FFFFFF/E91E63?text=7C'">
                 </a>
-                <h1 class="brand-text d-block">Masuk ke 7CellX</h1>
-                <p class="text-muted fw-medium">Lanjutkan eksplorasi teknologi Anda</p>
+                <h1 class="brand-text d-block">Login Ke 7CellX</h1>
+                <p class="text-muted fw-medium"></p>
             </div>
 
             <?php if (isset($error)): ?>

@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/koneksi.php';
+/** @var mysqli $conn */
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && isset($_SESSION['user_id'])) {
     
@@ -344,7 +345,7 @@ if (isset($_SESSION['user_id'])) {
             <div class="orb-2"></div>
             <div class="position-relative z-3">
                 <h1 class="display-5 fw-bold text-white mb-2" style="letter-spacing: -1px;">Katalisator Produktivitas</h1>
-                <p class="fs-5 text-white opacity-75 mb-0">Tempat Jual HP aja Ngab, Sokin!</p>
+                <p class="fs-5 text-white opacity-75 mb-0">Inpokan Deskripsi yang Menarik</p>
             </div>
         </div>
 

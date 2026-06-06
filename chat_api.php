@@ -13,7 +13,7 @@ if ($my_id === 0) {
     exit;
 }
 
-// 1. KIRIM PESAN & GAMBAR
+// Kirim Pesan / Gambar
 if ($action === 'send') {
     $msg = trim($_POST['message'] ?? '');
     $target_id = (int) ($_POST['target_id'] ?? 0);
@@ -41,7 +41,7 @@ if ($action === 'send') {
     exit;
 }
 
-// 2. AMBIL PESAN
+// Membaca Pesan
 if ($action === 'fetch') {
     $target_id = (int) ($_GET['target_id'] ?? 0);
     $uid = ($role === 'admin') ? $target_id : $my_id;
@@ -59,7 +59,7 @@ if ($action === 'fetch') {
     exit;
 }
 
-// 3. HAPUS PESAN
+// Menghapus Pesan
 if ($action === 'delete') {
     $msg_id = (int) $_POST['msg_id'];
     $stmt = mysqli_prepare($conn, "SELECT attachment FROM chats WHERE id = ? AND sender_role = ?");
@@ -76,7 +76,7 @@ if ($action === 'delete') {
     exit;
 }
 
-// 4. CEK STATUS
+// Cek Status Online?
 if ($action === 'status') {
     $active = (int) ($_GET['active'] ?? 1);
     mysqli_query($conn, "UPDATE users SET is_online = $active, last_seen = NOW() WHERE id = $my_id");
