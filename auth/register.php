@@ -15,7 +15,7 @@ if (isset($_SESSION['user_id'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nama = trim($_POST['nama']);
     $email = trim($_POST['email']);
-    $username = explode('@', $email)[0]; // Men-generate username otomatis dari email
+    $username = explode('@', $email)[0]; 
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
 
@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $success = "Akun berhasil dibuat! Mengarahkan ke halaman login...";
                 header("refresh:2;url=login.php");
             } else {
-                $error = "Terjadi kesalahan teknis. Silakan coba lagi.";
+                $error = "Silakan coba lagi.";
             }
         }
     }
