@@ -23,20 +23,12 @@ Tujuan pembuatan website ini adalah untuk memenuhi tugas akhir mata kuliah Pemro
 - Manajemen produk (CRUD) dan manajemen pesanan (Update status).
 - Panel chat untuk membalas pertanyaan customer.
 
-## 4. Struktur Project dan Penjelasan Folder/File Penting
-
-PBW-Project-PHP/
-├── admin/ # Halaman khusus admin (dashboard, produk, pesanan, chat)
-├── assets/ # File statis (CSS, JavaScript, gambar)
-├── auth/ # Halaman login, register, dan logout
-├── config/ # Konfigurasi aplikasi
-│ └── koneksi.php # File koneksi database (PDO)
-── customer/ # Halaman khusus customer (katalog, keranjang, checkout, dll)
-── uploads/ # Folder penyimpanan gambar produk dan attachment chat
-├── chat_api.php # API untuk menangani real-time chat (AJAX polling)
-├── composer.json # Dependency management (PHPMailer)
-├── database.sql # File dump database untuk import
-└── index.php # Entry point (redirect ke halaman katalog)
+## 4. Struktur Project dan Penjelasan File/Folder Penting
+Project ini terdiri dari beberapa folder utama dan file konfigurasi yang masing-masing memiliki tanggung jawab spesifik.
+Folder admin/ berisi seluruh halaman yang hanya bisa diakses oleh admin, meliputi dashboard ringkasan penjualan, manajemen produk (CRUD), manajemen pesanan, dan panel chat. Folder customer/ berisi halaman yang diakses oleh pembeli, seperti katalog produk, keranjang belanja, halaman checkout, dan riwayat pesanan. Folder auth/ menangani alur autentikasi pengguna, mencakup halaman login, register, dan proses logout.
+Folder assets/ menyimpan semua file statis seperti CSS, JavaScript, dan gambar antarmuka. Folder uploads/ digunakan sebagai tempat penyimpanan gambar produk yang diunggah admin serta attachment yang dikirim melalui fitur chat.
+Folder config/ menyimpan konfigurasi aplikasi, dengan file utamanya adalah koneksi.php yang mengelola koneksi ke database menggunakan PDO.
+Untuk file-file di root project: index.php adalah entry point aplikasi yang mengarahkan pengguna ke halaman katalog. chat_api.php adalah endpoint API yang menangani fitur real-time chat berbasis AJAX polling. database.sql adalah file dump database yang digunakan saat setup awal. composer.json mendefinisikan dependensi project, dalam hal ini PHPMailer untuk pengiriman invoice via email.
 
 
 ## 5. Cara Menjalankan Aplikasi
